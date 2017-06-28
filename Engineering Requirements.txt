@@ -1,0 +1,7 @@
+1. Develop tool using Python 2.
+
+2. Use TDD approach. Provide extensive coverage with unit tests.
+
+3. Measure coverage by unit tests.
+
+4. (Stretch) achieve 80% LOC coverage.
