@@ -1,0 +1,45 @@
+RBTCS Tool (Risk-Based Test Case Selector)
+
+Functional Requirements
+
+1. Run with arguments 
+To be able to run rbtcs.py script with arguments:
+- source file name which contains test cases and associated data (seed file)
+- column name which contains risk-factor variable
+- column name which contains execution time for each test case
+- column name where to put selection marks (yes/no)
+- time budget (time available for test case execution) (in minutes)
+- help argument to show help and default values
+
+2. Parse arguments
+To be able parse input arguments:
+- handle input validation for arguments;
+- parse arguments
+
+3. Have default values for all arguments
+- source file name "testcases.xls"
+- risk-factor column "Risk Factor"
+- Execution time column "Execution Time"
+- Selection column "Selected"
+- Time budget 2500 (slightly above 5 days)
+
+
+4. Read and validate seed file
+- read seed file into internal list
+- validate that "risk-factor" column stores float data type and "TC execution time" column stores int data type
+
+5. Provide meaningful log messages for error cases (during input validation and content validation)
+
+6. Select test cases for execution
+Select test cases for execution in such a way that:
+- Total execution time for all selected test cases is <= time budget
+- Selected test set is optimized so that total risk-factor of all selected test cases in maximum among all possible test sets
+
+7. Save selected test cases
+Using specified (or default) column mark selected test cases with "1" and not selected with "0"
+
+
+Stretch Goals
+1. Column that definces pre-selected test cases (those that must be included into coverage)
+2. Test case selection by covered risk-factor - to be able to select test cases in such a way that requested risk factor is covered with minimum total execution time
+3. Implement pre-condition relationship for test cases (if TC A has TC B as a pre-condition, then A can't be added to test set without B)
