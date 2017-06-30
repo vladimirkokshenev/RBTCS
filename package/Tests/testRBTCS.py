@@ -3,30 +3,82 @@ import sys
 sys.path.append('''C:\Git\RBTCS\package''')
 import rbtcs
 
-class TestArgumentsConstruction(unittest.TestCase):
+class TestParseArguments(unittest.TestCase):
     """Unit tests for class Arguments    """
 
     def test_default_values(self):
-        args = rbtcs.Arguments()
-        self.assertEqual(args.filename, 'testcases.xls')
-        self.assertEqual(args.risk_factor_col, 'Risk Factor')
-        self.assertEqual(args.execution_time_col, 'Execution Time')
-        self.assertEqual(args.selection_col, 'Selected')
-        self.assertEqual(args.time_budget, 2500)
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'], rbtcs.default_arguments['filename']])
+        self.assertEqual(args.filename, rbtcs.default_arguments['filename'])
+        self.assertEqual(args.risk_factor, rbtcs.default_arguments['risk factor'])
+        self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
+        self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
+        self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
 
-    def test_nondefault_values(self):
-        filename = "test.xls"
-        risk_factor_col = "Risk Factor Test"
-        execution_time_col = "Execution Time Test"
-        selection_col = "Selected Test"
-        time_budget = 100500
-        args = rbtcs.Arguments(filename, risk_factor_col, execution_time_col, selection_col, time_budget)
-        self.assertEqual(args.filename, filename)
-        self.assertEqual(args.risk_factor_col, risk_factor_col)
-        self.assertEqual(args.execution_time_col, execution_time_col)
-        self.assertEqual(args.selection_col, selection_col)
-        self.assertEqual(args.time_budget, time_budget)
+    def test_filename(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'], 'test.xls'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, rbtcs.default_arguments['risk factor'])
+        self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
+        self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
+        self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
 
+    def test_risk_factor(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'], 'test.xls',
+                                      '--risk-factor', 'risk factor col'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'risk factor col')
+        self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
+        self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
+        self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+
+    def test_execution_time(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                      'test.xls',
+                                      '--risk-factor', 'risk factor col',
+                                      '--execution-time', 'execution time col'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'risk factor col')
+        self.assertEqual(args.execution_time, 'execution time col')
+        self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
+        self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+
+    def test_selection(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                      'test.xls',
+                                      '--risk-factor', 'risk factor col',
+                                      '--execution-time', 'execution time col',
+                                      '--selection', 'selected col'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'risk factor col')
+        self.assertEqual(args.execution_time, 'execution time col')
+        self.assertEqual(args.selection, 'selected col')
+        self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+
+    def test_time_budget(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                      'test.xls',
+                                      '--risk-factor', 'risk factor col',
+                                      '--execution-time', 'execution time col',
+                                      '--selection', 'selected col',
+                                      '--time-budget', '1000'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'risk factor col')
+        self.assertEqual(args.execution_time, 'execution time col')
+        self.assertEqual(args.selection, 'selected col')
+        self.assertEqual(args.time_budget, 1000)
+
+    def test_full_string(self):
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                      'test.xls',
+                                      '--risk-factor=rf',
+                                      '--execution-time=et',
+                                      '--selection=s',
+                                      '--time-budget=1000'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'rf')
+        self.assertEqual(args.execution_time, 'et')
+        self.assertEqual(args.selection, 's')
+        self.assertEqual(args.time_budget, 1000)
 
 if __name__ == '__main__':
     unittest.main()
