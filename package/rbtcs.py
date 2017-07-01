@@ -1,4 +1,5 @@
-from xlrd import open_workbook
+import xlrd
+import xlwt
 import argparse
 import sys
 
@@ -6,8 +7,7 @@ default_arguments = {"filename": "testcases.xls",
                      "risk factor": "Risk Factor",
                      "execution time": "Execution Time",
                      "selection": "Selected",
-                     "time budget": 2500,
-                     "rbtcs": "rbtcs.py"}
+                     "time budget": 2500}
 
 def parse_arguments(arguments):
     """Parse input arguments for RBTCS tool.
@@ -61,4 +61,45 @@ def build_test_set():
 if __name__ == "__main__":
     print(sys.argv)
     a = parse_arguments(sys.argv)
-    print(a)
+
+    wb = xlrd.open_workbook(a.filename)
+    for s in wb.sheets():
+        # print 'Sheet:',s.name
+        values = []
+        for row in range(s.nrows):
+            col_value = []
+            for col in range(s.ncols):
+                value = (s.cell(row, col).value)
+                try:
+                    value = str(int(value))
+                except:
+                    pass
+                col_value.append(value)
+            values.append(col_value)
+    print values
+
+    if a.risk_factor in values[0]:
+        print("Risk Factor column found: %d" % (values[0].index(a.risk_factor)))
+    else:
+        print("Can't find Risk Factor column")
+
+    if a.execution_time in values[0]:
+        print("Execution Time column found: %d" % (values[0].index(a.execution_time)))
+    else:
+        print("Can't find Execution Time column")
+
+    if a.selection in values[0]:
+        print("Selection column found: %d" % (values[0].index(a.selection)))
+    else:
+        print("Can't find Selection column")
+
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet('A Test Sheet')
+
+    ws.write(0, 0, 1234.56)
+    ws.write(1, 0, 123)
+    ws.write(2, 0, 1)
+    ws.write(2, 1, 1)
+    ws.write(2, 2, xlwt.Formula("A3+B3"))
+
+    wb.save(a.filename)
