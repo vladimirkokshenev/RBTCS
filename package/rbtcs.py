@@ -155,11 +155,74 @@ def write_data(arguments, values):
     wb.save("example.xls")
 
 
+def select_test_cases(arguments, values):
+    """ Select test cases to build maximized risk coverage
+
+    :param arguments: parsed arguments
+    :param values: data from seed file
+    :return: achieved risk ratio (achieved_risk_coverage/total_risk_value)
+    """
+
+    # number of test cases in <values>
+    tc_count = len(values) - 1
+
+    # index for execution_time column
+    et = values[0].index(arguments.execution_time)
+
+    # index for risk_factor column
+    rf = values[0].index(arguments.risk_factor)
+
+    # index for selection column
+    sel = values[0].index(arguments.selection)
+
+    # risk_mitigation[i][j] stores best risk coverage based on test cases 1..i with total execution time <=j
+    risk_mitigation = [[0.0 for j in range(arguments.time_budget+1)] for i in range(0, tc_count+1)]
+
+    # test_set[i][j] stores a test set associated with best risk coverage risk_mitigation[i][j]
+    test_set = [[[] for j in range(arguments.time_budget+1)] for i in range(0, tc_count+1)]
+
+    # solution for 0,1 knapsack problem using dynamic programming approach
+    for i in range(1,tc_count+1):
+        for j in range(0,arguments.time_budget+1):
+
+            if values[i][et] > j:
+                risk_mitigation[i][j] = risk_mitigation[i-1][j]
+                # make sure that lists are copied, not referenced!
+                test_set[i][j] = list(test_set[i-1][j])
+
+            else:
+                if risk_mitigation[i-1][j] > risk_mitigation[i-1][j-values[i][et]] + values[i][rf]:
+                    risk_mitigation[i][j] = risk_mitigation[i - 1][j]
+                    # make sure that lists are copied, not referenced!
+                    test_set[i][j] = list(test_set[i - 1][j])
+                else:
+                    risk_mitigation[i][j] = risk_mitigation[i-1][j-values[i][et]] + values[i][rf]
+                    test_set[i][j] = list(test_set[i-1][j-values[i][et]])
+                    test_set[i][j].append(i)
+
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(1,tc_count+1):
+        total_risk_value += values[i][rf]
+        if i in test_set[tc_count][arguments.time_budget]:
+            values[i][sel] = 1
+            achieved_risk_coverage += values[i][rf]
+        else:
+            values[i][sel] = 0
+
+    return achieved_risk_coverage/total_risk_value
+
+
 if __name__ == "__main__":
 
     arguments = parse_arguments(sys.argv)
     validate_filename(arguments.filename)
     data = read_data(arguments.filename)
     validate_data(arguments, data)
-    write_data(arguments,data)
-    # print(data)
+    a = select_test_cases(arguments, data)
+    # write_data(arguments, data)
+
+    print("Covered risk is %f" % a)
+    for i in range(0,len(data)):
+        print(data[i])
