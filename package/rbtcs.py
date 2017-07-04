@@ -64,7 +64,7 @@ def validate_filename(filename):
 
 
 def read_data(filename):
-    """
+    """ Read data from seed file
 
     :param filename: seed file name
     :return: table data from seed file (table is represented as a list of rows, each row is a list of values)
@@ -79,12 +79,7 @@ def read_data(filename):
         for row in range(s.nrows):
             col_value = []
             for col in range(s.ncols):
-                value = (s.cell(row, col).value)
-                # following try/catch will convert float values to float, but integer values will stay as strings
-                try:
-                    value = str(int(value))
-                except:
-                    pass
+                value = s.cell(row, col).value
                 col_value.append(value)
             values.append(col_value)
         # break cycle after reading only first sheet
@@ -152,7 +147,7 @@ def write_data(arguments, values):
         for c in range(len(values[0])):
             ws.write(r, c, values[r][c])
 
-    wb.save("example.xls")
+    wb.save(arguments.filename)
 
 
 def select_test_cases(arguments, values):
