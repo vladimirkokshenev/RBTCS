@@ -1,0 +1,15 @@
+
+[validate_filename()]	illegal seed file name or file doesn't exist
+
+[validate_data()]	Can't find Risk Factor column \"%s\" in seed file
+
+[validate_data()]	Can't find Execution Time column \"%s\" in seed file
+
+[validate_data()]	Can't find Selection column \"%s\" in seed file
+
+[validate_data()]	Time budget is not a positive number: %d
+
+[validate_data()]	Can't convert value %d in risk factor column \"%s\" into float
+
+[validate_data()]	Can't convert value %d in execution time column \"%s\" into integer
+

@@ -59,7 +59,7 @@ def validate_filename(filename):
     """
 
     if os.path.isfile(filename) == False:
-        print("ERROR: illegal file name or file doesn't exist")
+        print("ERROR: illegal seed file name or file doesn't exist")
         sys.exit(0)
 
 
@@ -118,6 +118,11 @@ def validate_data(arguments, values):
                                                       arguments.selection))
     else:
         print("ERROR: Can't find Selection column \"%s\" in seed file" % arguments.selection)
+        sys.exit(0)
+
+    # check that <time budget> is a positive value
+    if arguments.time_budget <= 0:
+        print("ERROR: Time budget is not a positive number: %d" % arguments.time_budget)
         sys.exit(0)
 
     # check that content of <risk factor> column can be converted to float, and convert
