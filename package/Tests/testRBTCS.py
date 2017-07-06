@@ -140,7 +140,8 @@ class TestValidateData(unittest.TestCase):
                                       '--selection', 'Selected',
                                       '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
-        rbtcs.validate_data(arguments, data)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.OK)
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 0.1, 10, u''], [2.0, 0.2, 20, u'']]
         self.assertEqual(data, data2)
 
@@ -156,9 +157,82 @@ class TestValidateData(unittest.TestCase):
                                       '--selection', 'Selected',
                                       '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
-        rbtcs.validate_data(arguments, data)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.OK)
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 1.0, 10, u''], [2.0, 2.0, 20, u'']]
         self.assertEqual(data, data2)
+
+    def test_validate_data_wrong_risk_factor(self):
+        """ Unit test for data validation in case of missing Risk Factor column"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_read_data_1.xlsx',
+                                           '--risk-factor', 'Risk F',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_RISK_FACTOR_NOT_FOUND)
+
+    def test_validate_data_wrong_execution_time(self):
+        """ Unit test for data validation in case of missing Execution Time column"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_read_data_1.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution T',
+                                           '--selection', 'Selected',
+                                           '--time-budget=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_EXECUTION_TIME_NOT_FOUND)
+
+    def test_validate_data_wrong_selection(self):
+        """ Unit test for data validation in case of missing Selection column"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_read_data_1.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Sel',
+                                           '--time-budget=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_SELECTION_NOT_FOUND)
+
+    def test_validate_data_negative_time_budget(self):
+        """ Unit test for data validation in case of negative Time Budget"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_read_data_1.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=-1'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_TIME_BUDGET_NOT_POSITIVE)
+
+    def test_validate_data_risk_factor_non_float(self):
+        """ Unit test for data validation in case of Risk Factor value non-convertable to float"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_risk_factor.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_RISK_FACTOR_TYPE)
+
+    def test_validate_data_execution_time_non_integer(self):
+        """ Unit test for data validation in case of Execution Time value non-convertable to int"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_execution_time.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        ret = rbtcs.validate_data(arguments, data)
+        self.assertEquals(ret, rbtcs.status_code.ERR_EXECUTION_TIME_TYPE)
 
 if __name__ == '__main__':
     unittest.main()

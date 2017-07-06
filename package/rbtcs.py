@@ -3,13 +3,43 @@ import xlwt
 import argparse
 import sys
 import os.path
+import logging
+import enum
 
 default_arguments = {"rbtcs": "rbtcs.py",
                      "filename": "testcases.xls",
                      "risk factor": "Risk Factor",
                      "execution time": "Execution Time",
                      "selection": "Selected",
-                     "time budget": 2500}
+                     "time budget": 2500,
+                     "logger": "rbtcs"}
+
+status_code = enum.Enum('OK',
+                        'ERR_FILE_NOT_FOUND',
+                        'ERR_XLRD_READ',
+                        'ERR_RISK_FACTOR_NOT_FOUND',
+                        'ERR_EXECUTION_TIME_NOT_FOUND',
+                        'ERR_SELECTION_NOT_FOUND',
+                        'ERR_TIME_BUDGET_NOT_POSITIVE',
+                        'ERR_RISK_FACTOR_TYPE',
+                        'ERR_EXECUTION_TIME_TYPE')
+
+MAX_BUDGET = 10000
+MAX_TC = 300
+
+def init_logger():
+    """ Initialize logger: set logging level, logging message format and handler """
+
+    logger = logging.getLogger(default_arguments["logger"])
+    logger.setLevel(logging.DEBUG)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(console_handler)
 
 
 def parse_arguments(arguments):
@@ -58,9 +88,13 @@ def validate_filename(filename):
     :return: no return value
     """
 
+    logger = logging.getLogger(default_arguments["logger"])
+
     if os.path.isfile(filename) == False:
-        print("ERROR: illegal seed file name or file doesn't exist")
-        sys.exit(0)
+        logger.critical("illegal seed file name or file doesn't exist")
+        return status_code.ERR_FILE_NOT_FOUND
+
+    return status_code.OK
 
 
 def read_data(filename):
@@ -72,6 +106,7 @@ def read_data(filename):
 
     # read excel file
     wb = xlrd.open_workbook(filename)
+
     for s in wb.sheets():
         # print 'Sheet:',s.name
         # actually there is break statement in the end of the first iteration of the cycle for sheets
@@ -96,34 +131,35 @@ def validate_data(arguments, values):
     :return: no return value. Program exits in case of validation failure
     """
 
+    logger = logging.getLogger(default_arguments["logger"])
+
     # check that <risk factor> column exists
     if arguments.risk_factor in values[0]:
-        print("Risk Factor column found: col %d, \"%s\"" % (values[0].index(arguments.risk_factor),
-                                                            arguments.risk_factor))
+        logger.info("Risk Factor column found: col %d, \"%s\"", values[0].index(arguments.risk_factor), arguments.risk_factor)
     else:
-        print("ERROR: Can't find Risk Factor column \"%s\" in seed file" % arguments.risk_factor)
-        sys.exit(0)
+        logger.critical("Can't find Risk Factor column \"%s\" in seed file", arguments.risk_factor)
+        return status_code.ERR_RISK_FACTOR_NOT_FOUND
 
     # check that <execution time> column exists
     if arguments.execution_time in values[0]:
-        print("Execution Time column found: col %d, \"%s\"" % (values[0].index(arguments.execution_time),
-                                                               arguments.execution_time))
+        logger.info("Execution Time column found: col %d, \"%s\"", values[0].index(arguments.execution_time),
+                    arguments.execution_time)
     else:
-        print("ERROR: Can't find Execution Time column \"%s\" in seed file" % arguments.execution_time)
-        sys.exit(0)
+        logger.critical("Can't find Execution Time column \"%s\" in seed file", arguments.execution_time)
+        return status_code.ERR_EXECUTION_TIME_NOT_FOUND
 
     # check that <selection> column exists
     if arguments.selection in values[0]:
-        print("Selection column found: %d, \"%s\"" % (values[0].index(arguments.selection),
-                                                      arguments.selection))
+        logger.info("Selection column found: col %d, \"%s\"", values[0].index(arguments.selection),
+                    arguments.selection)
     else:
-        print("ERROR: Can't find Selection column \"%s\" in seed file" % arguments.selection)
-        sys.exit(0)
+        logger.critical("Can't find Selection column \"%s\" in seed file", arguments.selection)
+        return status_code.ERR_SELECTION_NOT_FOUND
 
     # check that <time budget> is a positive value
     if arguments.time_budget <= 0:
-        print("ERROR: Time budget is not a positive number: %d" % arguments.time_budget)
-        sys.exit(0)
+        logger.critical("Time budget is not a positive number: %d", arguments.time_budget)
+        return status_code.ERR_TIME_BUDGET_NOT_POSITIVE
 
     # check that content of <risk factor> column can be converted to float, and convert
     rf = values[0].index(arguments.risk_factor)
@@ -131,8 +167,8 @@ def validate_data(arguments, values):
         try:
             values[i][rf] = float(values[i][rf])
         except:
-            print("ERROR: Can't convert value %d in risk factor column \"%s\" into float" % (i,arguments.risk_factor))
-            sys.exit(0)
+            logger.critical("Can't convert Risk Factor for test case # %d to float", i)
+            return status_code.ERR_RISK_FACTOR_TYPE
 
     # check that content of <execution time> column can be converted to int, and convert
     et = values[0].index(arguments.execution_time)
@@ -140,8 +176,16 @@ def validate_data(arguments, values):
         try:
             values[i][et] = int(values[i][et])
         except:
-            print("ERROR: Can't convert value %d in execution time column \"%s\" into integer" % (i, arguments.execution_time))
-            sys.exit(0)
+            logger.critical("Can't convert Execution Time for test case # %d to integer", i)
+            return status_code.ERR_EXECUTION_TIME_TYPE
+
+    if arguments.time_budget > MAX_BUDGET:
+        logger.warning("Specified time budget is relatively big which may prevent from getting optimal solution")
+
+    if len(values) >= MAX_TC:
+        logger.warning("Number of test cases in seed file is relatively big which may prevent from getting optimal solution")
+
+    return status_code.OK
 
 
 def write_data(arguments, values):
@@ -182,8 +226,8 @@ def select_test_cases(arguments, values):
     test_set = [[[] for j in range(arguments.time_budget+1)] for i in range(0, tc_count+1)]
 
     # solution for 0,1 knapsack problem using dynamic programming approach
-    for i in range(1,tc_count+1):
-        for j in range(0,arguments.time_budget+1):
+    for i in range(1, tc_count+1):
+        for j in range(0, arguments.time_budget+1):
 
             if values[i][et] > j:
                 risk_mitigation[i][j] = risk_mitigation[i-1][j]
@@ -203,7 +247,7 @@ def select_test_cases(arguments, values):
     achieved_risk_coverage = 0.0
     total_risk_value = 0.0
 
-    for i in range(1,tc_count+1):
+    for i in range(1, tc_count+1):
         total_risk_value += values[i][rf]
         if i in test_set[tc_count][arguments.time_budget]:
             values[i][sel] = 1
@@ -216,13 +260,42 @@ def select_test_cases(arguments, values):
 
 if __name__ == "__main__":
 
+    # init logging
+    init_logger()
+    logger = logging.getLogger(default_arguments["logger"])
+
+    # parse input arguments
     arguments = parse_arguments(sys.argv)
-    validate_filename(arguments.filename)
-    data = read_data(arguments.filename)
-    validate_data(arguments, data)
-    a = select_test_cases(arguments, data)
+
+    # validate seed file name
+    ret = validate_filename(arguments.filename)
+    if ret == status_code.ERR_FILE_NOT_FOUND:
+        exit(ret)
+
+    # read data from seed file
+    try:
+        data = read_data(arguments.filename)
+    except xlrd.XLRDError as e:
+        logger.critical("XLRDError reading seed file")
+        exit(status_code.ERR_XLRD_READ)
+
+    # validate data from seed file
+    ret = validate_data(arguments, data)
+    if ret != status_code.OK:
+        exit(ret)
+
+    # launching optimization algorithm to build test set
+    try:
+        logger.info("Building test coverage using dynamic programming algorithm for 01 knapsack problem with a time-budget of %d",
+                    arguments.time_budget)
+        a = select_test_cases(arguments, data)
+        logger.info("Covered risk with porposed test set is %f", a)
+        for i in range(0, len(data)):
+            print(data[i])
+    except MemoryError as e:
+        logger.error("caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
+        logger.info("building test coverage using greedy approximation algorithm")
+
     # write_data(arguments, data)
 
-    print("Covered risk is %f" % a)
-    for i in range(0,len(data)):
-        print(data[i])
+    exit(status_code.OK)
