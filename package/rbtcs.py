@@ -199,7 +199,7 @@ def write_data(arguments, values):
     wb.save(arguments.filename)
 
 
-def select_test_cases(arguments, values):
+def alg_dynamic_programming_01(arguments, values):
     """ Select test cases to build maximized risk coverage
 
     :param arguments: parsed arguments
@@ -275,8 +275,9 @@ if __name__ == "__main__":
     # read data from seed file
     try:
         data = read_data(arguments.filename)
-    except xlrd.XLRDError as e:
-        logger.critical("XLRDError reading seed file")
+    except Exception as e:
+        logger.critical("Error reading seed file in XLRD")
+        logger.debug("Exception: %s", e.message)
         exit(status_code.ERR_XLRD_READ)
 
     # validate data from seed file
@@ -288,13 +289,13 @@ if __name__ == "__main__":
     try:
         logger.info("Building test coverage using dynamic programming algorithm for 01 knapsack problem with a time-budget of %d",
                     arguments.time_budget)
-        a = select_test_cases(arguments, data)
+        a = alg_dynamic_programming_01(arguments, data)
         logger.info("Covered risk with porposed test set is %f", a)
         for i in range(0, len(data)):
             print(data[i])
     except MemoryError as e:
-        logger.error("caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
-        logger.info("building test coverage using greedy approximation algorithm")
+        logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
+        logger.info("Building test coverage using greedy approximation algorithm")
 
     # write_data(arguments, data)
 
