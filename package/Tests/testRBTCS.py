@@ -1,8 +1,19 @@
 import unittest
 import sys
 import os
+import logging
 sys.path.append('''C:\Git\RBTCS\package''')
 import rbtcs
+
+
+class TestInitLogger(unittest.TestCase):
+    """Fake unit test to trigger init_logger()"""
+
+    def test_init_logger(self):
+        """Just initializing logger"""
+        rbtcs.init_logger()
+        logging.disable(logging.CRITICAL)
+        self.assertEquals(1, 1)
 
 
 class TestParseArguments(unittest.TestCase):
@@ -334,6 +345,19 @@ class TestOptimalAlgorithms(unittest.TestCase):
                [466257.0, 224, 1], [369261.0, 169, 1]]
         self.assertEquals(data, sol)
 
+
+class TestValidateFilename(unittest.TestCase):
+    """Unit tests for validate_filename()"""
+
+    def test_valide_filename_valid(self):
+        """unit test for valid file name"""
+        res = rbtcs.validate_filename('test_alg_1.xlsx')
+        self.assertEquals(res, rbtcs.status_code.OK)
+
+    def test_valide_filename_invalid(self):
+        """unit test for invalid file name"""
+        res = rbtcs.validate_filename('trash.trash')
+        self.assertEquals(res, rbtcs.status_code.ERR_FILE_NOT_FOUND)
 
 if __name__ == '__main__':
     unittest.main()
