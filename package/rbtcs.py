@@ -5,6 +5,7 @@ import sys
 import os.path
 import logging
 import enum
+from operator import itemgetter
 
 default_arguments = {"rbtcs": "rbtcs.py",
                      "filename": "testcases.xls",
@@ -190,17 +191,18 @@ def validate_data(arguments, values):
 
 def write_data(arguments, values):
     wb = xlwt.Workbook()
-    ws = wb.add_sheet('Risk-based')
+    ws = wb.add_sheet('Sheet1')
+
 
     for r in range(len(values)):
         for c in range(len(values[0])):
             ws.write(r, c, values[r][c])
 
-    wb.save(arguments.filename)
+    wb.save('rbtcs_result.xls')
 
 
 def alg_dynamic_programming_01(arguments, values):
-    """ Select test cases to build maximized risk coverage
+    """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
     :param arguments: parsed arguments
     :param values: data from seed file
@@ -258,6 +260,54 @@ def alg_dynamic_programming_01(arguments, values):
     return achieved_risk_coverage/total_risk_value
 
 
+def alg_greedy_01(arguments, values):
+    """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
+
+    :param arguments: parsed arguments
+    :param values: data from seed file
+    :return: achieved risk ratio (achieved_risk_coverage/total_risk_value)
+    """
+
+    # number of test cases in <values>
+    tc_count = len(values) - 1
+
+    # index for execution_time column
+    et = values[0].index(arguments.execution_time)
+
+    # index for risk_factor column
+    rf = values[0].index(arguments.risk_factor)
+
+    # index for selection column
+    sel = values[0].index(arguments.selection)
+
+    # calculate risk density in separate list, we also store number of original test case
+    risk_density = [[i, values[i][rf]/values[i][et]] for i in range(1, tc_count+1)]
+
+    # sort seed data by rf/et values
+    risk_density = sorted(risk_density, key=itemgetter(1), reverse=True)
+
+    # use greedy strategy to put as many tc in a set as possible
+    remaining_budget = arguments.time_budget
+
+    for i in range(tc_count):
+        if values[risk_density[i][0]][et] <= remaining_budget:
+            values[risk_density[i][0]][sel] = 1
+            remaining_budget -= values[risk_density[i][0]][et]
+        else:
+            values[risk_density[i][0]][sel] = 0
+
+    # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(1, tc_count + 1):
+        total_risk_value += values[i][rf]
+        if values[i][sel] == 1:
+            achieved_risk_coverage += values[i][rf]
+
+    return achieved_risk_coverage / total_risk_value
+
+
 if __name__ == "__main__":
 
     # init logging
@@ -280,6 +330,8 @@ if __name__ == "__main__":
         logger.debug("Exception: %s", e.message)
         exit(status_code.ERR_XLRD_READ)
 
+
+
     # validate data from seed file
     ret = validate_data(arguments, data)
     if ret != status_code.OK:
@@ -290,13 +342,13 @@ if __name__ == "__main__":
         logger.info("Building test coverage using dynamic programming algorithm for 01 knapsack problem with a time-budget of %d",
                     arguments.time_budget)
         a = alg_dynamic_programming_01(arguments, data)
-        logger.info("Covered risk with porposed test set is %f", a)
-        for i in range(0, len(data)):
-            print(data[i])
+        logger.info("Covered risk with proposed test set using dynamic programming method is %f", a)
     except MemoryError as e:
         logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
         logger.info("Building test coverage using greedy approximation algorithm")
+        a = alg_greedy_01(arguments, data)
+        logger.info("Covered risk with proposed test set using greedy method is %f", a)
 
-    # write_data(arguments, data)
+    write_data(arguments, data)
 
     exit(status_code.OK)

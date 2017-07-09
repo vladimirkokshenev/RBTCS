@@ -125,15 +125,15 @@ class TestReadWriteData(unittest.TestCase):
                                            '--execution-time', 'Execution Time',
                                            '--selection', 'Selected',
                                            '--time-budget=1000'])
-        if os.path.isfile(arguments.filename):
-            os.remove(arguments.filename)
+        if os.path.isfile('rbtcs_result.xls'):
+            os.remove('rbtcs_result.xls')
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 0.1, 10, u''], [2.0, 0.2, 20, u'']]
         rbtcs.write_data(arguments, data2)
-        self.assertEquals(os.path.isfile(arguments.filename), True)
-        data = rbtcs.read_data(arguments.filename)
+        self.assertEquals(os.path.isfile('rbtcs_result.xls'), True)
+        data = rbtcs.read_data('rbtcs_result.xls')
         self.assertEquals(data2, data)
-        if os.path.isfile(arguments.filename):
-            os.remove(arguments.filename)
+        if os.path.isfile('rbtcs_result.xls'):
+            os.remove('rbtcs_result.xls')
 
 
 class TestValidateData(unittest.TestCase):
@@ -327,7 +327,7 @@ class TestOptimalAlgorithms(unittest.TestCase):
 
 
     def test_6(self):
-        "seed data <test_alg_6.xlsx>, time budget 6405"
+        """seed data <test_alg_6.xlsx>, time budget 6405"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_6.xlsx',
                                            '--risk-factor', 'Risk Factor',
@@ -344,6 +344,99 @@ class TestOptimalAlgorithms(unittest.TestCase):
                [853655.0, 446, 0], [1826027.0, 931, 0], [65731.0, 31, 0], [901489.0, 496, 0], [577243.0, 264, 1],
                [466257.0, 224, 1], [369261.0, 169, 1]]
         self.assertEquals(data, sol)
+
+
+class TestApproximateAlgorithms(unittest.TestCase):
+    """Unit tests for all implementations of algorithms with approximate solution"""
+
+    def test_1(self):
+        """seed data <test_alg_1.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=165'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        rbtcs.alg_greedy_01(arguments, data)
+        sol = [[u'Risk Factor', u'Execution Time', u'Selected'], [92.0, 23, 1], [57.0, 31, 1], [49.0, 29, 1],
+             [68.0, 44, 1], [60.0, 53, 0], [43.0, 38, 1], [67.0, 63, 0], [84.0, 85, 0], [87.0, 89, 0], [72.0, 82, 0]]
+        self.assertEquals(data, sol)
+
+    def test_2(self):
+        """seed data <test_alg_2.xlsx>, time budget 26"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_2.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=26'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        rbtcs.alg_greedy_01(arguments, data)
+        sol = [[u'Risk Factor', u'Execution Time', u'Selected'], [24.0, 12, 1], [13.0, 7, 0],
+               [23.0, 11, 1], [15.0, 8, 0], [16.0, 9, 0]]
+        self.assertEquals(data, sol)
+
+    def test_3(self):
+        """seed data <test_alg_3.xlsx>, time budget 190"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_3.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=190'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        rbtcs.alg_greedy_01(arguments, data)
+        sol = [[u'Risk Factor', u'Execution Time', u'Selected'], [50.0, 56, 1],
+               [50.0, 59, 1], [64.0, 80, 0], [46.0, 64, 1], [50.0, 75, 0], [5.0, 17, 0]]
+        self.assertEquals(data, sol)
+
+    def test_4(self):
+        """seed data <test_alg_4.xlsx>, time budget 50"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_4.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=50'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        rbtcs.alg_greedy_01(arguments, data)
+        sol = [[u'Risk Factor', u'Execution Time', u'Selected'], [70.0, 31, 1], [20.0, 10, 1],
+               [39.0, 20, 0], [37.0, 19, 0], [7.0, 4, 1], [5.0, 3, 1], [10.0, 6, 0]]
+        self.assertEquals(data, sol)
+
+    def test_5(self):
+        """seed data <test_alg_5.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_5.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=750'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        rbtcs.alg_greedy_01(arguments, data)
+        sol = [[u'Risk Factor', u'Execution Time', u'Selected'], [135.0, 70, 1], [139.0, 73, 1], [149.0, 77, 1],
+               [150.0, 80, 0], [156.0, 82, 0], [163.0, 87, 0], [173.0, 90, 1], [184.0, 94, 1], [192.0, 98, 1],
+               [201.0, 106, 0], [210.0, 110, 0], [214.0, 113, 0], [221.0, 115, 0], [229.0, 118, 1], [240.0, 120, 1]]
+        self.assertEquals(data, sol)
+
+    def test_6(self):
+        """seed data <test300.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test300.xlsx',
+                                           '--risk-factor', 'Risk Factor',
+                                           '--execution-time', 'Execution Time',
+                                           '--selection', 'Selected',
+                                           '--time-budget=15000'])
+        data = rbtcs.read_data(arguments.filename)
+        rbtcs.validate_data(arguments, data)
+        a = rbtcs.alg_greedy_01(arguments, data)
+        self.assertEquals(a, 1.0)
 
 
 class TestValidateFilename(unittest.TestCase):
