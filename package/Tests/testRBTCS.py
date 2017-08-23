@@ -152,7 +152,7 @@ class TestValidateData(unittest.TestCase):
                                       '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.OK)
+        self.assertEquals(ret, rbtcs.StatusCode.OK)
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 0.1, 10, u''], [2.0, 0.2, 20, u'']]
         self.assertEqual(data, data2)
 
@@ -169,7 +169,7 @@ class TestValidateData(unittest.TestCase):
                                       '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.OK)
+        self.assertEquals(ret, rbtcs.StatusCode.OK)
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 1.0, 10, u''], [2.0, 2.0, 20, u'']]
         self.assertEqual(data, data2)
 
@@ -183,7 +183,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_RISK_FACTOR_NOT_FOUND)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_RISK_FACTOR_NOT_FOUND)
 
     def test_validate_data_wrong_execution_time(self):
         """ Unit test for data validation in case of missing Execution Time column"""
@@ -195,7 +195,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_EXECUTION_TIME_NOT_FOUND)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_EXECUTION_TIME_NOT_FOUND)
 
     def test_validate_data_wrong_selection(self):
         """ Unit test for data validation in case of missing Selection column"""
@@ -207,7 +207,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_SELECTION_NOT_FOUND)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_SELECTION_NOT_FOUND)
 
     def test_validate_data_negative_time_budget(self):
         """ Unit test for data validation in case of negative Time Budget"""
@@ -219,7 +219,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=-1'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_TIME_BUDGET_NOT_POSITIVE)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_TIME_BUDGET_NOT_POSITIVE)
 
     def test_validate_data_risk_factor_non_float(self):
         """ Unit test for data validation in case of Risk Factor value non-convertable to float"""
@@ -231,7 +231,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_RISK_FACTOR_TYPE)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_RISK_FACTOR_TYPE)
 
     def test_validate_data_execution_time_non_integer(self):
         """ Unit test for data validation in case of Execution Time value non-convertable to int"""
@@ -243,7 +243,7 @@ class TestValidateData(unittest.TestCase):
                                            '--time-budget=1000'])
         data = rbtcs.read_data(arguments.filename)
         ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.status_code.ERR_EXECUTION_TIME_TYPE)
+        self.assertEquals(ret, rbtcs.StatusCode.ERR_EXECUTION_TIME_TYPE)
 
 
 class TestOptimalAlgorithms(unittest.TestCase):
@@ -445,12 +445,12 @@ class TestValidateFilename(unittest.TestCase):
     def test_valide_filename_valid(self):
         """unit test for valid file name"""
         res = rbtcs.validate_filename('test_alg_1.xlsx')
-        self.assertEquals(res, rbtcs.status_code.OK)
+        self.assertEquals(res, rbtcs.StatusCode.OK)
 
     def test_valide_filename_invalid(self):
         """unit test for invalid file name"""
         res = rbtcs.validate_filename('trash.trash')
-        self.assertEquals(res, rbtcs.status_code.ERR_FILE_NOT_FOUND)
+        self.assertEquals(res, rbtcs.StatusCode.ERR_FILE_NOT_FOUND)
 
 if __name__ == '__main__':
     unittest.main()

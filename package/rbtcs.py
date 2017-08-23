@@ -15,15 +15,17 @@ default_arguments = {"rbtcs": "rbtcs.py",
                      "time budget": 2500,
                      "logger": "rbtcs"}
 
-status_code = enum.Enum('OK',
-                        'ERR_FILE_NOT_FOUND',
-                        'ERR_XLRD_READ',
-                        'ERR_RISK_FACTOR_NOT_FOUND',
-                        'ERR_EXECUTION_TIME_NOT_FOUND',
-                        'ERR_SELECTION_NOT_FOUND',
-                        'ERR_TIME_BUDGET_NOT_POSITIVE',
-                        'ERR_RISK_FACTOR_TYPE',
-                        'ERR_EXECUTION_TIME_TYPE')
+class StatusCode(enum.Enum):
+    OK = 1
+    ERR_FILE_NOT_FOUND = 2
+    ERR_XLRD_READ = 3
+    ERR_RISK_FACTOR_NOT_FOUND = 4
+    ERR_EXECUTION_TIME_NOT_FOUND = 5
+    ERR_SELECTION_NOT_FOUND = 6
+    ERR_TIME_BUDGET_NOT_POSITIVE = 7
+    ERR_RISK_FACTOR_TYPE = 8
+    ERR_EXECUTION_TIME_TYPE = 9
+
 
 MAX_BUDGET = 10000
 MAX_TC = 300
@@ -93,9 +95,9 @@ def validate_filename(filename):
 
     if os.path.isfile(filename) == False:
         logger.critical("illegal seed file name or file doesn't exist")
-        return status_code.ERR_FILE_NOT_FOUND
+        return StatusCode.ERR_FILE_NOT_FOUND
 
-    return status_code.OK
+    return StatusCode.OK
 
 
 def read_data(filename):
@@ -139,7 +141,7 @@ def validate_data(arguments, values):
         logger.info("Risk Factor column found: col %d, \"%s\"", values[0].index(arguments.risk_factor), arguments.risk_factor)
     else:
         logger.critical("Can't find Risk Factor column \"%s\" in seed file", arguments.risk_factor)
-        return status_code.ERR_RISK_FACTOR_NOT_FOUND
+        return StatusCode.ERR_RISK_FACTOR_NOT_FOUND
 
     # check that <execution time> column exists
     if arguments.execution_time in values[0]:
@@ -147,7 +149,7 @@ def validate_data(arguments, values):
                     arguments.execution_time)
     else:
         logger.critical("Can't find Execution Time column \"%s\" in seed file", arguments.execution_time)
-        return status_code.ERR_EXECUTION_TIME_NOT_FOUND
+        return StatusCode.ERR_EXECUTION_TIME_NOT_FOUND
 
     # check that <selection> column exists
     if arguments.selection in values[0]:
@@ -155,12 +157,12 @@ def validate_data(arguments, values):
                     arguments.selection)
     else:
         logger.critical("Can't find Selection column \"%s\" in seed file", arguments.selection)
-        return status_code.ERR_SELECTION_NOT_FOUND
+        return StatusCode.ERR_SELECTION_NOT_FOUND
 
     # check that <time budget> is a positive value
     if arguments.time_budget <= 0:
         logger.critical("Time budget is not a positive number: %d", arguments.time_budget)
-        return status_code.ERR_TIME_BUDGET_NOT_POSITIVE
+        return StatusCode.ERR_TIME_BUDGET_NOT_POSITIVE
 
     # check that content of <risk factor> column can be converted to float, and convert
     rf = values[0].index(arguments.risk_factor)
@@ -169,7 +171,7 @@ def validate_data(arguments, values):
             values[i][rf] = float(values[i][rf])
         except:
             logger.critical("Can't convert Risk Factor for test case # %d to float", i)
-            return status_code.ERR_RISK_FACTOR_TYPE
+            return StatusCode.ERR_RISK_FACTOR_TYPE
 
     # check that content of <execution time> column can be converted to int, and convert
     et = values[0].index(arguments.execution_time)
@@ -178,7 +180,7 @@ def validate_data(arguments, values):
             values[i][et] = int(values[i][et])
         except:
             logger.critical("Can't convert Execution Time for test case # %d to integer", i)
-            return status_code.ERR_EXECUTION_TIME_TYPE
+            return StatusCode.ERR_EXECUTION_TIME_TYPE
 
     if arguments.time_budget > MAX_BUDGET:
         logger.warning("Specified time budget is relatively big which may prevent from getting optimal solution")
@@ -186,7 +188,7 @@ def validate_data(arguments, values):
     if len(values) >= MAX_TC:
         logger.warning("Number of test cases in seed file is relatively big which may prevent from getting optimal solution")
 
-    return status_code.OK
+    return StatusCode.OK
 
 
 def write_data(arguments, values):
@@ -319,7 +321,7 @@ if __name__ == "__main__":
 
     # validate seed file name
     ret = validate_filename(arguments.filename)
-    if ret == status_code.ERR_FILE_NOT_FOUND:
+    if ret == StatusCode.ERR_FILE_NOT_FOUND:
         exit(ret)
 
     # read data from seed file
@@ -328,13 +330,13 @@ if __name__ == "__main__":
     except Exception as e:
         logger.critical("Error reading seed file in XLRD")
         logger.debug("Exception: %s", e.message)
-        exit(status_code.ERR_XLRD_READ)
+        exit(StatusCode.ERR_XLRD_READ)
 
 
 
     # validate data from seed file
     ret = validate_data(arguments, data)
-    if ret != status_code.OK:
+    if ret != StatusCode.OK:
         exit(ret)
 
     # launching optimization algorithm to build test set
@@ -351,4 +353,4 @@ if __name__ == "__main__":
 
     write_data(arguments, data)
 
-    exit(status_code.OK)
+    exit(StatusCode.OK)
