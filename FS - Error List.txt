@@ -1,15 +1,32 @@
+OK = 1
+    Return in case if no errors exist
 
-[validate_filename()]	illegal seed file name or file doesn't exist
+ERR_FILE_NOT_FOUND = 2
+    In case if file name supplied in <filename> argument doesn't exist, StatusCode.ERR_FILE_NOT_FOUND is reported by rbtcs.validate_filename() method.
 
-[validate_data()]	Can't find Risk Factor column \"%s\" in seed file
+ERR_XLRD_READ = 3
+    StatusCode.ERR_XLRD_READ is reported as exit code out of main functional in case if rbtcs.read_data() method raised any exception.
+    
+ERR_RISK_FACTOR_NOT_FOUND = 4
+    rbtcs.validate_data() method checks if risk factor column (supplied in <--risk-factor> argument) exists in the firsth row of data.
+    It reports StatusCode.ERR_RISK_FACTOR_NOT_FOUND if such column name doesn't exit.
 
-[validate_data()]	Can't find Execution Time column \"%s\" in seed file
+ERR_EXECUTION_TIME_NOT_FOUND = 5
+    rbtcs.validate_data() method checks if execution time column (supplied in <--execution-time> argument) exists in the firsth row of data.
+    It reports StatusCode.ERR_EXECUTION_TIME_NOT_FOUND if such column name doesn't exit.
 
-[validate_data()]	Can't find Selection column \"%s\" in seed file
+ERR_SELECTION_NOT_FOUND = 6
+    rbtcs.validate_data() method checks if selection column (supplied in <--selection> argument) exists in the firsth row of data.
+    It reports StatusCode.ERR_SELECTION_NOT_FOUND if such column name doesn't exit.
 
-[validate_data()]	Time budget is not a positive number: %d
+ERR_TIME_BUDGET_NOT_POSITIVE = 7
+    Time budget value (supplied in <--time-budget> argument) must be a positive integer number. 
+    rbtcs.validate_data() method returns StatusCode.ERR_TIME_BUDGET_NOT_POSITIVE if it is not.
 
-[validate_data()]	Can't convert value %d in risk factor column \"%s\" into float
+ERR_RISK_FACTOR_TYPE = 8
+    Values in risk factor column have to be of float type.
+    rbtcs.validate_data() method returns StatusCode.ERR_RISK_FACTOR_TYPE if they are not.
 
-[validate_data()]	Can't convert value %d in execution time column \"%s\" into integer
-
+ERR_EXECUTION_TIME_TYPE = 9
+    Values in execution time column have to be of integertype.
+    rbtcs.validate_data() method returns StatusCode.ERR_EXECUTION_TIME_TYPE if they are not.
