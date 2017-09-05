@@ -166,7 +166,7 @@ def validate_data(arguments, values):
 
     # check that content of <risk factor> column can be converted to float, and convert
     rf = values[0].index(arguments.risk_factor)
-    for i in range(1,len(values)):
+    for i in range(1, len(values)):
         try:
             values[i][rf] = float(values[i][rf])
         except:
@@ -175,7 +175,7 @@ def validate_data(arguments, values):
 
     # check that content of <execution time> column can be converted to int, and convert
     et = values[0].index(arguments.execution_time)
-    for i in range(1,len(values)):
+    for i in range(1, len(values)):
         try:
             values[i][et] = int(values[i][et])
         except:
