@@ -94,7 +94,7 @@ def validate_filename(filename):
     logger = logging.getLogger(default_arguments["logger"])
 
     if os.path.isfile(filename) == False:
-        logger.critical("illegal seed file name or file doesn't exist")
+        logger.critical("%s is illegal input file name or file doesn't exist" % filename)
         return StatusCode.ERR_FILE_NOT_FOUND
 
     return StatusCode.OK
@@ -140,7 +140,7 @@ def validate_data(arguments, values):
     if arguments.risk_factor in values[0]:
         logger.info("Risk Factor column found: col %d, \"%s\"", values[0].index(arguments.risk_factor), arguments.risk_factor)
     else:
-        logger.critical("Can't find Risk Factor column \"%s\" in seed file", arguments.risk_factor)
+        logger.critical("Can't find Risk Factor column \"%s\" in input file", arguments.risk_factor)
         return StatusCode.ERR_RISK_FACTOR_NOT_FOUND
 
     # check that <execution time> column exists
@@ -148,7 +148,7 @@ def validate_data(arguments, values):
         logger.info("Execution Time column found: col %d, \"%s\"", values[0].index(arguments.execution_time),
                     arguments.execution_time)
     else:
-        logger.critical("Can't find Execution Time column \"%s\" in seed file", arguments.execution_time)
+        logger.critical("Can't find Execution Time column \"%s\" in input file", arguments.execution_time)
         return StatusCode.ERR_EXECUTION_TIME_NOT_FOUND
 
     # check that <selection> column exists
@@ -156,7 +156,7 @@ def validate_data(arguments, values):
         logger.info("Selection column found: col %d, \"%s\"", values[0].index(arguments.selection),
                     arguments.selection)
     else:
-        logger.critical("Can't find Selection column \"%s\" in seed file", arguments.selection)
+        logger.critical("Can't find Selection column \"%s\" in input file", arguments.selection)
         return StatusCode.ERR_SELECTION_NOT_FOUND
 
     # check that <time budget> is a positive value
@@ -328,8 +328,8 @@ if __name__ == "__main__":
     try:
         data = read_data(arguments.filename)
     except Exception as e:
-        logger.critical("Error reading seed file in XLRD")
-        logger.debug("Exception: %s", e.message)
+        logger.critical("Error reading input file in XLRD")
+        logger.debug("XLRD Exception: %s", e.message)
         exit(StatusCode.ERR_XLRD_READ)
 
 
@@ -341,10 +341,9 @@ if __name__ == "__main__":
 
     # launching optimization algorithm to build test set
     try:
-        logger.info("Building test coverage using dynamic programming algorithm for 01 knapsack problem with a time-budget of %d",
-                    arguments.time_budget)
+        logger.info("Building test coverage using optimal algorithm based on dynamic programming solution for 01 knapsack problem")
         a = alg_dynamic_programming_01(arguments, data)
-        logger.info("Covered risk with proposed test set using dynamic programming method is %f", a)
+        logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
     except MemoryError as e:
         logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
         logger.info("Building test coverage using greedy approximation algorithm")
