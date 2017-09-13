@@ -25,6 +25,8 @@ class StatusCode(enum.Enum):
     ERR_TIME_BUDGET_NOT_POSITIVE = 7
     ERR_RISK_FACTOR_TYPE = 8
     ERR_EXECUTION_TIME_TYPE = 9
+    ERR_HEADER_ROW_NOT_FOUND = 10
+    ERR_HEADER_ROW_LAST = 11
 
 
 MAX_BUDGET = 10000
@@ -126,7 +128,58 @@ def read_data(filename):
     return values
 
 
-def validate_data(arguments, values):
+def detect_header_row(arguments, values):
+    """
+    Detection of a header row in an input file. The method searches for a row that contains risk-factor,
+    execution-time and selection cells. All three should be in the same row. 
+    
+    :param arguments: command line arguments (including risk-factor, execution-time and selection)
+    :param values: input file data (list of lists)
+    :return: header row index
+    """
+
+    logger = logging.getLogger(default_arguments["logger"])
+
+    cur_row = 0
+
+    while cur_row < len(values):
+        a = arguments.risk_factor in values[cur_row]
+        b = arguments.execution_time in values[cur_row]
+        c = arguments.selection in values[cur_row]
+        # stop search if we found a row where all required headers are present
+        if a and b and c:
+            break
+        cur_row += 1
+
+    # if header row wasn't found (happens when cur_row == len(values))
+    if cur_row == len(values):
+        logger.critical("Header row not found!")
+        exit(StatusCode.ERR_HEADER_ROW_NOT_FOUND)
+    # if header row is the last row in the file - data is missing
+    if cur_row == len(values)-1:
+        logger.critical("Header row can't be the last row in the file!")
+        exit(StatusCode.ERR_HEADER_ROW_LAST)
+    # if header row was found - then log its number and return it
+    if cur_row < len(values)-1:
+        logger.debug("Header row index: %d", cur_row)
+        logger.debug("Risk Factor column index: %d", values[cur_row].index(arguments.risk_factor))
+        logger.debug("Execution Time column index: %d", values[cur_row].index(arguments.execution_time))
+        logger.debug("Selection column index: %d", values[cur_row].index(arguments.selection))
+        return cur_row
+
+
+def detect_itmes(arguments, values, hdr_row):
+    """ Method searches under the header row in "interesting" columns to detect items in input data
+    
+    :param arguments: command line arguments
+    :param values: data from input file
+    :param hdr_row: header row number
+    :return: first_item_index, item_count
+    """
+    # detect first item (we assume that there may be other row between header row and the first item)
+    # detect subsequent items (should go contiguously after the 1st item till the end of the file or invalid values)
+
+def validate_data(arguments, values, hdr_row):
     """ Seed file data validation. Check that required columns exists, and that data in these columns has required data type
 
     :param arguments: parsed arguments
@@ -136,64 +189,43 @@ def validate_data(arguments, values):
 
     logger = logging.getLogger(default_arguments["logger"])
 
-    # check that <risk factor> column exists
-    if arguments.risk_factor in values[0]:
-        logger.info("Risk Factor column found: col %d, \"%s\"", values[0].index(arguments.risk_factor), arguments.risk_factor)
-    else:
-        logger.critical("Can't find Risk Factor column \"%s\" in input file", arguments.risk_factor)
-        return StatusCode.ERR_RISK_FACTOR_NOT_FOUND
-
-    # check that <execution time> column exists
-    if arguments.execution_time in values[0]:
-        logger.info("Execution Time column found: col %d, \"%s\"", values[0].index(arguments.execution_time),
-                    arguments.execution_time)
-    else:
-        logger.critical("Can't find Execution Time column \"%s\" in input file", arguments.execution_time)
-        return StatusCode.ERR_EXECUTION_TIME_NOT_FOUND
-
-    # check that <selection> column exists
-    if arguments.selection in values[0]:
-        logger.info("Selection column found: col %d, \"%s\"", values[0].index(arguments.selection),
-                    arguments.selection)
-    else:
-        logger.critical("Can't find Selection column \"%s\" in input file", arguments.selection)
-        return StatusCode.ERR_SELECTION_NOT_FOUND
-
     # check that <time budget> is a positive value
     if arguments.time_budget <= 0:
         logger.critical("Time budget is not a positive number: %d", arguments.time_budget)
         return StatusCode.ERR_TIME_BUDGET_NOT_POSITIVE
 
     # check that content of <risk factor> column can be converted to float, and convert
-    rf = values[0].index(arguments.risk_factor)
-    for i in range(1, len(values)):
+    rf = values[hdr_row].index(arguments.risk_factor)
+    for i in range(hdr_row+1, len(values)):
         try:
             values[i][rf] = float(values[i][rf])
         except:
-            logger.critical("Can't convert Risk Factor for test case # %d to float", i)
+            # item i in values specifies item i+1 in excel (excel starts from 1)
+            logger.critical("Can't convert Risk Factor for item in row # %d to float", i+1)
             return StatusCode.ERR_RISK_FACTOR_TYPE
 
     # check that content of <execution time> column can be converted to int, and convert
-    et = values[0].index(arguments.execution_time)
-    for i in range(1, len(values)):
+    et = values[hdr_row].index(arguments.execution_time)
+    for i in range(hdr_row+1, len(values)):
         try:
             values[i][et] = int(values[i][et])
         except:
-            logger.critical("Can't convert Execution Time for test case # %d to integer", i)
+            # item i in values specifies item i+1 in excel (excel starts from 1)
+            logger.critical("Can't convert Execution Time for item # %d to integer", i+1)
             return StatusCode.ERR_EXECUTION_TIME_TYPE
 
     if arguments.time_budget > MAX_BUDGET:
-        logger.warning("Specified time budget is relatively big which may prevent from getting optimal solution")
+        logger.warning("Specified Time Budget is relatively big which may lead to sub-optimal solution")
 
-    if len(values) >= MAX_TC:
-        logger.warning("Number of test cases in seed file is relatively big which may prevent from getting optimal solution")
+    if len(values)-hdr_row-1 >= MAX_TC:
+        logger.warning("Number of Items in the input file is relatively big which may lead to sub-optimal solution")
 
     return StatusCode.OK
 
 
 def write_data(arguments, values):
     wb = xlwt.Workbook()
-    ws = wb.add_sheet('Sheet1')
+    ws = wb.add_sheet('RBTCS')
 
 
     for r in range(len(values)):
@@ -203,26 +235,29 @@ def write_data(arguments, values):
     wb.save('rbtcs_result.xls')
 
 
-def alg_dynamic_programming_01(arguments, values):
+def alg_dynamic_programming_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
     :param arguments: parsed arguments
     :param values: data from seed file
+    :param hdr_row: index of header row
     :return: achieved risk ratio (achieved_risk_coverage/total_risk_value)
     """
 
     # number of test cases in <values>
-    tc_count = len(values) - 1
+    tc_count = len(values) - hdr_row - 1
 
     # index for execution_time column
-    et = values[0].index(arguments.execution_time)
+    et = values[hdr_row].index(arguments.execution_time)
 
     # index for risk_factor column
-    rf = values[0].index(arguments.risk_factor)
+    rf = values[hdr_row].index(arguments.risk_factor)
 
     # index for selection column
-    sel = values[0].index(arguments.selection)
+    sel = values[hdr_row].index(arguments.selection)
 
+    # test case #1 is in row (hdr_row+1)
+    # test case #2 is in (hdr_row+2), etc.
     # risk_mitigation[i][j] stores best risk coverage based on test cases 1..i with total execution time <=j
     risk_mitigation = [[0.0 for j in range(arguments.time_budget+1)] for i in range(0, tc_count+1)]
 
@@ -233,57 +268,58 @@ def alg_dynamic_programming_01(arguments, values):
     for i in range(1, tc_count+1):
         for j in range(0, arguments.time_budget+1):
 
-            if values[i][et] > j:
+            if values[hdr_row+i][et] > j:
                 risk_mitigation[i][j] = risk_mitigation[i-1][j]
                 # make sure that lists are copied, not referenced!
                 test_set[i][j] = list(test_set[i-1][j])
 
             else:
-                if risk_mitigation[i-1][j] > risk_mitigation[i-1][j-values[i][et]] + values[i][rf]:
+                if risk_mitigation[i-1][j] > risk_mitigation[i-1][j-values[hdr_row+i][et]] + values[hdr_row+i][rf]:
                     risk_mitigation[i][j] = risk_mitigation[i - 1][j]
                     # make sure that lists are copied, not referenced!
                     test_set[i][j] = list(test_set[i - 1][j])
                 else:
-                    risk_mitigation[i][j] = risk_mitigation[i-1][j-values[i][et]] + values[i][rf]
-                    test_set[i][j] = list(test_set[i-1][j-values[i][et]])
+                    risk_mitigation[i][j] = risk_mitigation[i-1][j-values[hdr_row+i][et]] + values[hdr_row+i][rf]
+                    test_set[i][j] = list(test_set[i-1][j-values[hdr_row+i][et]])
                     test_set[i][j].append(i)
 
     achieved_risk_coverage = 0.0
     total_risk_value = 0.0
 
     for i in range(1, tc_count+1):
-        total_risk_value += values[i][rf]
+        total_risk_value += values[hdr_row+i][rf]
         if i in test_set[tc_count][arguments.time_budget]:
-            values[i][sel] = 1
-            achieved_risk_coverage += values[i][rf]
+            values[hdr_row+i][sel] = 1
+            achieved_risk_coverage += values[hdr_row+i][rf]
         else:
-            values[i][sel] = 0
+            values[hdr_row+i][sel] = 0
 
     return achieved_risk_coverage/total_risk_value
 
 
-def alg_greedy_01(arguments, values):
+def alg_greedy_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
     :param arguments: parsed arguments
     :param values: data from seed file
+    :param hdr_row: index of a header row
     :return: achieved risk ratio (achieved_risk_coverage/total_risk_value)
     """
 
     # number of test cases in <values>
-    tc_count = len(values) - 1
+    tc_count = len(values) - hdr_row - 1
 
     # index for execution_time column
-    et = values[0].index(arguments.execution_time)
+    et = values[hdr_row].index(arguments.execution_time)
 
     # index for risk_factor column
-    rf = values[0].index(arguments.risk_factor)
+    rf = values[hdr_row].index(arguments.risk_factor)
 
     # index for selection column
-    sel = values[0].index(arguments.selection)
+    sel = values[hdr_row].index(arguments.selection)
 
     # calculate risk density in separate list, we also store number of original test case
-    risk_density = [[i, values[i][rf]/values[i][et]] for i in range(1, tc_count+1)]
+    risk_density = [[i, values[hdr_row+i][rf]/values[hdr_row+i][et]] for i in range(1, tc_count+1)]
 
     # sort seed data by rf/et values
     risk_density = sorted(risk_density, key=itemgetter(1), reverse=True)
@@ -292,20 +328,20 @@ def alg_greedy_01(arguments, values):
     remaining_budget = arguments.time_budget
 
     for i in range(tc_count):
-        if values[risk_density[i][0]][et] <= remaining_budget:
-            values[risk_density[i][0]][sel] = 1
-            remaining_budget -= values[risk_density[i][0]][et]
+        if values[hdr_row+risk_density[i][0]][et] <= remaining_budget:
+            values[hdr_row+risk_density[i][0]][sel] = 1
+            remaining_budget -= values[hdr_row+risk_density[i][0]][et]
         else:
-            values[risk_density[i][0]][sel] = 0
+            values[hdr_row+risk_density[i][0]][sel] = 0
 
     # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
     achieved_risk_coverage = 0.0
     total_risk_value = 0.0
 
     for i in range(1, tc_count + 1):
-        total_risk_value += values[i][rf]
-        if values[i][sel] == 1:
-            achieved_risk_coverage += values[i][rf]
+        total_risk_value += values[hdr_row+i][rf]
+        if values[hdr_row+i][sel] == 1:
+            achieved_risk_coverage += values[hdr_row+i][rf]
 
     return achieved_risk_coverage / total_risk_value
 
@@ -332,22 +368,21 @@ if __name__ == "__main__":
         logger.debug("XLRD Exception: %s", e.message)
         exit(StatusCode.ERR_XLRD_READ)
 
-
-
     # validate data from seed file
-    ret = validate_data(arguments, data)
+    hdr_row = detect_header_row(arguments, data)
+    ret = validate_data(arguments, data, hdr_row)
     if ret != StatusCode.OK:
         exit(ret)
 
     # launching optimization algorithm to build test set
     try:
         logger.info("Building test coverage using optimal algorithm based on dynamic programming solution for 01 knapsack problem")
-        a = alg_dynamic_programming_01(arguments, data)
+        a = alg_dynamic_programming_01(arguments, data, hdr_row)
         logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
     except MemoryError as e:
         logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
         logger.info("Building test coverage using greedy approximation algorithm")
-        a = alg_greedy_01(arguments, data)
+        a = alg_greedy_01(arguments, data, hdr_row)
         logger.info("Covered risk with proposed test set using greedy method is %f", a)
 
     write_data(arguments, data)
