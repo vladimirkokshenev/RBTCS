@@ -15,6 +15,7 @@ default_arguments = {"rbtcs": "rbtcs.py",
                      "time budget": 2500,
                      "logger": "rbtcs"}
 
+
 class StatusCode(enum.Enum):
     OK = 1
     ERR_FILE_NOT_FOUND = 2
@@ -31,6 +32,7 @@ class StatusCode(enum.Enum):
 
 MAX_BUDGET = 10000
 MAX_TC = 300
+
 
 def init_logger():
     """ Initialize logger: set logging level, logging message format and handler """
@@ -178,6 +180,7 @@ def detect_itmes(arguments, values, hdr_row):
     """
     # detect first item (we assume that there may be other row between header row and the first item)
     # detect subsequent items (should go contiguously after the 1st item till the end of the file or invalid values)
+
 
 def validate_data(arguments, values, hdr_row):
     """ Seed file data validation. Check that required columns exists, and that data in these columns has required data type
