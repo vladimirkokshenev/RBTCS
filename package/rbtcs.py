@@ -379,7 +379,7 @@ if __name__ == "__main__":
 
     # launching optimization algorithm to build test set
     try:
-        logger.info("Building test coverage using optimal algorithm based on dynamic programming solution for 01 knapsack problem")
+        logger.info("Building test coverage using optimal algorithm")
         a = alg_dynamic_programming_01(arguments, data, hdr_row)
         logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
     except MemoryError as e:
