@@ -312,6 +312,11 @@ class TestValidateData(unittest.TestCase):
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
         self.assertEqual(ret, rbtcs.StatusCode.OK)
+        prereqind = data[hdr_row].index(arguments.prerequisites)
+        self.assertEqual(data[hdr_row+2][prereqind], [1])
+        self.assertEqual(data[hdr_row + 3][prereqind], [])
+        self.assertEqual(data[hdr_row + 4][prereqind], [1, 2])
+        self.assertEqual(data[hdr_row + 10][prereqind], [1, 2, 3, 4, 5, 6])
 
     def test_validate_data_prerequisites_err(self):
         """ Unit test for validate_data() when prerquisites incorrect"""
@@ -341,6 +346,29 @@ class TestValidateData(unittest.TestCase):
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
         self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
+
+
+class TestPrepareDataForWriting(unittest.TestCase):
+    """Unit tests for prepare_data_for_writing()    """
+    def test_prepare_data(self):
+        """ Unit test for prepare_data_for_writing() """
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        rbtcs.prepare_data_for_writing(arguments, data, hdr_row)
+        prereqind = data[hdr_row].index(arguments.prerequisites)
+        self.assertEqual(data[hdr_row + 2][prereqind], '1')
+        self.assertEqual(data[hdr_row + 3][prereqind], '')
+        self.assertEqual(data[hdr_row + 4][prereqind], '1,2')
+        self.assertEqual(data[hdr_row + 10][prereqind], '1,2,3,4,5,6')
+
 
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""

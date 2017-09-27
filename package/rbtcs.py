@@ -30,6 +30,7 @@ class StatusCode(enum.Enum):
     ERR_HEADER_ROW_NOT_FOUND = 10
     ERR_HEADER_ROW_LAST = 11
     ERR_PREREQUISITES_TYPE = 12
+    ERR_XLWT_WRITE = 13
 
 
 MAX_BUDGET = 10000
@@ -189,6 +190,7 @@ def validate_data(arguments, values, hdr_row):
 
     :param arguments: parsed arguments
     :param values: read data from seed file (table with test cases)
+    :param hdr_row: header row index
     :return: no return value. Program exits in case of validation failure
     """
 
@@ -223,7 +225,9 @@ def validate_data(arguments, values, hdr_row):
     if arguments.prerequisites != "":
         prereq = values[hdr_row].index(arguments.prerequisites)
         for i in range(hdr_row + 1, len(values)):
-            if values[i][prereq] != '':
+            if values[i][prereq] == "":
+                values[i][prereq] = []
+            else:
                 prereq_list_converted = []
                 # check if this is single-value cell (i.e. only one integer value provided as prerequisite)
                 try:
@@ -259,11 +263,24 @@ def validate_data(arguments, values, hdr_row):
 def prepare_data_for_writing(arguments, values, hdr_row):
     """ Current implementation convert prerequisites (that are stored as a list of integers) back into string.
     
-    :param arguments: 
-    :param values: 
-    :param hdr_row: 
-    :return: 
+    :param arguments: parsed arguments
+    :param values: read data from seed file (table with test cases)
+    :param hdr_row: header row index
+    :return: no return value
     """
+
+    prereq = values[hdr_row].index(arguments.prerequisites)
+    for i in range(hdr_row + 1, len(values)):
+        if values[i][prereq] == []:
+            values[i][prereq] = ""
+        else:
+            prereq_str = ""
+            for j in range(len(values[i][prereq])):
+                if prereq_str == "":
+                    prereq_str = prereq_str + str(values[i][prereq][j])
+                else:
+                    prereq_str = prereq_str + ',' + str(values[i][prereq][j])
+            values[i][prereq] = prereq_str
 
 
 def write_data(arguments, values):
@@ -431,6 +448,13 @@ if __name__ == "__main__":
     else:
         logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
 
-    write_data(arguments, data)
+    prepare_data_for_writing(arguments, data, hdr_row)
+
+    try:
+        write_data(arguments, data)
+    except Exception as e:
+        logger.critical("Error writing results file in XLWT")
+        logger.debug("XLWT Exception: %s", e.message)
+        exit(StatusCode.ERR_XLWT_WRITE)
 
     exit(StatusCode.OK)
