@@ -260,6 +260,36 @@ def validate_data(arguments, values, hdr_row):
     return StatusCode.OK
 
 
+def extract_items(arguments, values, hdr_row):
+    """ Extract risk factor, execution time, selection and (if specified) prerequisites from input data.
+    Add ID, and put into items (list of dictionaries). And return it.
+    
+    :param arguments: parsed arguments
+    :param values: read data from seed file (table with test cases)
+    :param hdr_row: header row index
+    :return: items - list of dictionaries [{"ID":<int>, "RF":<float>, "ET":<int>, "PR":[<int>]},...]
+    """
+
+    items = []
+
+    rf = values[hdr_row].index(arguments.risk_factor)
+    et = values[hdr_row].index(arguments.execution_time)
+    sl = values[hdr_row].index(arguments.selection)
+    if arguments.prerequisites != "":
+        pr = values[hdr_row].index(arguments.prerequisites)
+
+    for i in range(hdr_row + 1, len(values)):
+        items.append({})
+        items[-1]["ID"] = i - hdr_row
+        items[-1]["RF"] = values[i][rf]
+        items[-1]["ET"] = values[i][et]
+        items[-1]["SL"] = 0
+        if arguments.prerequisites != "":
+            items[-1]["PR"] = list(values[i][pr])
+
+    return items
+
+
 def prepare_data_for_writing(arguments, values, hdr_row):
     """ Current implementation convert prerequisites (that are stored as a list of integers) back into string.
     

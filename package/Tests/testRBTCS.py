@@ -348,6 +348,40 @@ class TestValidateData(unittest.TestCase):
         self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
 
 
+class TestExtractItems(unittest.TestCase):
+    """Unit tests for extract_items()    """
+    def test_extract_items_with_prerequisites(self):
+        """ Unit test for extract_items() with prerequisites """
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        self.assertEqual(items[0], {"ID": 1, "RF": 2.0, "ET": 2, "SL": 0, "PR": []})
+        self.assertEqual(items[1], {"ID": 2, "RF": 8.0, "ET": 3, "SL": 0, "PR": [1]})
+        self.assertEqual(items[9], {"ID": 10, "RF": 19.833333333333332, "ET": 1, "SL": 0, "PR": [1, 2, 3, 4, 5, 6]})
+
+    def test_extract_items_with_no_prerequisites(self):
+        """ Unit test for extract_items() without prerequisites """
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        self.assertEqual(items[0], {"ID": 1, "RF": 92.0, "ET": 23, "SL": 0})
+        self.assertEqual(items[9], {"ID": 10, "RF": 72.0, "ET": 82, "SL": 0})
+
 class TestPrepareDataForWriting(unittest.TestCase):
     """Unit tests for prepare_data_for_writing()    """
     def test_prepare_data(self):
