@@ -8,7 +8,7 @@ import enum
 from operator import itemgetter
 
 default_arguments = {"rbtcs": "rbtcs.py",
-                     "filename": "testcases.xls",
+                     "filename": "input.xlsx",
                      "risk factor": "Risk Factor",
                      "execution time": "Execution Time",
                      "selection": "Selected",
@@ -60,27 +60,27 @@ def parse_arguments(arguments):
 
     parser.add_argument("filename",
                         default=default_arguments["filename"],
-                        help="the seed file with test cases (xls/xlsx)")
+                        help="input file name (xls/xlsx)")
 
-    parser.add_argument("--risk-factor",
+    parser.add_argument("-r",
                         default=default_arguments["risk factor"],
-                        help="the column name containing risk factor of a test case (def=Risk Factor)",
+                        help="specify column name containing risk value associated with items (\"Risk Factor\" by default)",
                         dest="risk_factor")
 
-    parser.add_argument("--execution-time",
+    parser.add_argument("-t",
                         default=default_arguments["execution time"],
-                        help="the column name containing execution time of a test case (def=Execution Time)",
+                        help="specify column name containing execution time associated with items (\"Execution Time\" by default)",
                         dest="execution_time")
 
-    parser.add_argument("--selection",
+    parser.add_argument("-s",
                         default=default_arguments["selection"],
-                        help="the column name with a test case selection into resulting test set (def=Selected)",
+                        help="specify column name to output coverage decisions (\"Selected\" by default)",
                         dest="selection")
 
-    parser.add_argument("--time-budget",
+    parser.add_argument("-b",
                         default=default_arguments["time budget"],
                         type=int,
-                        help="the size of the time budget for the resulting test set (def=2500)",
+                        help="specify the size of the time budget available for testing (2500 by default)",
                         dest="time_budget")
 
     arguments.pop(0)

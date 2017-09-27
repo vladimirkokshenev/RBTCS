@@ -41,7 +41,7 @@ class TestParseArguments(unittest.TestCase):
     def test_risk_factor(self):
         """ Testing parse_arguments() with non-default values for filename, risk-factor """
         args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'], 'test.xls',
-                                      '--risk-factor', 'risk factor col'])
+                                      '-r', 'risk factor col'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'risk factor col')
         self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
@@ -53,8 +53,8 @@ class TestParseArguments(unittest.TestCase):
 
         args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test.xls',
-                                      '--risk-factor', 'risk factor col',
-                                      '--execution-time', 'execution time col'])
+                                      '-r', 'risk factor col',
+                                      '-t', 'execution time col'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'risk factor col')
         self.assertEqual(args.execution_time, 'execution time col')
@@ -66,9 +66,9 @@ class TestParseArguments(unittest.TestCase):
 
         args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test.xls',
-                                      '--risk-factor', 'risk factor col',
-                                      '--execution-time', 'execution time col',
-                                      '--selection', 'selected col'])
+                                      '-r', 'risk factor col',
+                                      '-t', 'execution time col',
+                                      '-s', 'selected col'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'risk factor col')
         self.assertEqual(args.execution_time, 'execution time col')
@@ -80,10 +80,10 @@ class TestParseArguments(unittest.TestCase):
 
         args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test.xls',
-                                      '--risk-factor', 'risk factor col',
-                                      '--execution-time', 'execution time col',
-                                      '--selection', 'selected col',
-                                      '--time-budget', '1000'])
+                                      '-r', 'risk factor col',
+                                      '-t', 'execution time col',
+                                      '-s', 'selected col',
+                                      '-b', '1000'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'risk factor col')
         self.assertEqual(args.execution_time, 'execution time col')
@@ -95,10 +95,10 @@ class TestParseArguments(unittest.TestCase):
 
         args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test.xls',
-                                      '--risk-factor=rf',
-                                      '--execution-time=et',
-                                      '--selection=s',
-                                      '--time-budget=1000'])
+                                      '-r=rf',
+                                      '-t=et',
+                                      '-s=s',
+                                      '-b=1000'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'rf')
         self.assertEqual(args.execution_time, 'et')
@@ -121,10 +121,10 @@ class TestReadWriteData(unittest.TestCase):
         Then write a file from simple seed data and make sure file appeard"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_write_data_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '1000'])
         if os.path.isfile('rbtcs_result.xls'):
             os.remove('rbtcs_result.xls')
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 0.1, 10, u''], [2.0, 0.2, 20, u'']]
@@ -142,10 +142,10 @@ class TestDetectHeaderRow(unittest.TestCase):
         """Test when header row is row # 0"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_header_row_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         res = rbtcs.detect_header_row(arguments, data)
         self.assertEqual(res, 0)
@@ -155,10 +155,10 @@ class TestDetectHeaderRow(unittest.TestCase):
 
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_header_row_2.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         res = rbtcs.detect_header_row(arguments, data)
         self.assertEqual(res, 1)
@@ -168,10 +168,10 @@ class TestDetectHeaderRow(unittest.TestCase):
 
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_header_row_3.xlsx',
-                                           '--risk-factor', 'Risk Value',
-                                           '--execution-time', 'Execution Cost',
-                                           '--selection', 'Removed (y)?',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Value',
+                                           '-t', 'Execution Cost',
+                                           '-s', 'Removed (y)?',
+                                           '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         res = rbtcs.detect_header_row(arguments, data)
         self.assertEqual(res, 17)
@@ -187,10 +187,10 @@ class TestValidateData(unittest.TestCase):
         'Execution Time' column contains integer data and should stay integer"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test_read_data_1.xlsx',
-                                      '--risk-factor', 'Risk Factor',
-                                      '--execution-time', 'Execution Time',
-                                      '--selection', 'Selected',
-                                      '--time-budget=1000'])
+                                      '-r', 'Risk Factor',
+                                      '-t', 'Execution Time',
+                                      '-s', 'Selected',
+                                      '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
@@ -205,10 +205,10 @@ class TestValidateData(unittest.TestCase):
         'Execution Time' column contains float data and should be converted to integer"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                       'test_read_data_2.xlsx',
-                                      '--risk-factor', 'Risk Factor',
-                                      '--execution-time', 'Execution Time',
-                                      '--selection', 'Selected',
-                                      '--time-budget=1000'])
+                                      '-r', 'Risk Factor',
+                                      '-t', 'Execution Time',
+                                      '-s', 'Selected',
+                                      '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
@@ -216,56 +216,15 @@ class TestValidateData(unittest.TestCase):
         data2 = [[u'No', u'Risk Factor', u'Execution Time', u'Selected'], [1.0, 1.0, 10, u''], [2.0, 2.0, 20, u'']]
         self.assertEqual(data, data2)
 
-    """
-    def test_validate_data_wrong_risk_factor(self):
-        # Unit test for data validation in case of missing Risk Factor column
-        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
-                                           'test_read_data_1.xlsx',
-                                           '--risk-factor', 'Risk F',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
-        data = rbtcs.read_data(arguments.filename)
-        ret = rbtcs.validate_data(arguments, data)
-        # self.assertEquals(ret, rbtcs.StatusCode.ERR_RISK_FACTOR_NOT_FOUND)
-    """
-
-    """
-    def test_validate_data_wrong_execution_time(self):
-        # Unit test for data validation in case of missing Execution Time column
-        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
-                                           'test_read_data_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution T',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
-        data = rbtcs.read_data(arguments.filename)
-        ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.StatusCode.ERR_EXECUTION_TIME_NOT_FOUND)
-    """
-
-    """
-    def test_validate_data_wrong_selection(self):
-        # Unit test for data validation in case of missing Selection column
-        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
-                                           'test_read_data_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Sel',
-                                           '--time-budget=1000'])
-        data = rbtcs.read_data(arguments.filename)
-        ret = rbtcs.validate_data(arguments, data)
-        self.assertEquals(ret, rbtcs.StatusCode.ERR_SELECTION_NOT_FOUND)
-    """
 
     def test_validate_data_negative_time_budget(self):
         """ Unit test for data validation in case of negative Time Budget"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_read_data_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=-1'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=-1'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
@@ -275,10 +234,10 @@ class TestValidateData(unittest.TestCase):
         """ Unit test for data validation in case of Risk Factor value non-convertable to float"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_validate_data_risk_factor.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
@@ -288,10 +247,10 @@ class TestValidateData(unittest.TestCase):
         """ Unit test for data validation in case of Execution Time value non-convertable to int"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_validate_data_execution_time.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=1000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=1000'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
@@ -305,10 +264,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_1.xlsx>, time budget 165"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=165'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '165'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -321,10 +280,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_2.xlsx>, time budget 26"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_2.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=26'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '26'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -337,10 +296,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_3.xlsx>, time budget 190"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_3.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=190'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '190'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -353,10 +312,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_4.xlsx>, time budget 50"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_4.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=50'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '50'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -369,10 +328,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_5.xlsx>, time budget 750"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_5.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=750'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=750'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -387,10 +346,10 @@ class TestOptimalAlgorithms(unittest.TestCase):
         """seed data <test_alg_6.xlsx>, time budget 6405"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_6.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=6405'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=6405'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -411,10 +370,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test_alg_1.xlsx>, time budget 165"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_1.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=165'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -427,10 +386,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test_alg_2.xlsx>, time budget 26"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_2.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=26'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=26'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -443,10 +402,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test_alg_3.xlsx>, time budget 190"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_3.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=190'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=190'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -459,10 +418,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test_alg_4.xlsx>, time budget 50"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_4.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=50'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=50'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -475,10 +434,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test_alg_5.xlsx>, time budget 750"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_alg_5.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=750'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=750'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
@@ -492,10 +451,10 @@ class TestApproximateAlgorithms(unittest.TestCase):
         """seed data <test300.xlsx>, time budget 750"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test300.xlsx',
-                                           '--risk-factor', 'Risk Factor',
-                                           '--execution-time', 'Execution Time',
-                                           '--selection', 'Selected',
-                                           '--time-budget=15000'])
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=15000'])
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
