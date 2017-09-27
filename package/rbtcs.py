@@ -224,6 +224,7 @@ def validate_data(arguments, values, hdr_row):
         prereq = values[hdr_row].index(arguments.prerequisites)
         for i in range(hdr_row + 1, len(values)):
             if values[i][prereq] != '':
+                prereq_list_converted = []
                 # check if this is single-value cell (i.e. only one integer value provided as prerequisite)
                 try:
                     single_prerequisite = int(float(values[i][prereq]))
@@ -237,6 +238,12 @@ def validate_data(arguments, values, hdr_row):
                             # item i in values specifies item i+1 in excel (excel starts from 1)
                             logger.critical("Can't convert Prerequisites string for item # %d to list of integers ", i + 1)
                             return StatusCode.ERR_PREREQUISITES_TYPE
+                        else:
+                            prereq_list_converted.append(single_prerequisite)
+                    values[i][prereq] = prereq_list_converted
+                else:
+                    prereq_list_converted.append(single_prerequisite)
+                    values[i][prereq] = prereq_list_converted
 
     # check budget size
     if arguments.time_budget > MAX_BUDGET:
@@ -247,6 +254,16 @@ def validate_data(arguments, values, hdr_row):
         logger.warning("Number of Items in the input file is relatively big which may lead to sub-optimal solution")
 
     return StatusCode.OK
+
+
+def prepare_data_for_writing(arguments, values, hdr_row):
+    """ Current implementation convert prerequisites (that are stored as a list of integers) back into string.
+    
+    :param arguments: 
+    :param values: 
+    :param hdr_row: 
+    :return: 
+    """
 
 
 def write_data(arguments, values):
