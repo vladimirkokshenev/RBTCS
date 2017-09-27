@@ -13,6 +13,7 @@ default_arguments = {"rbtcs": "rbtcs.py",
                      "execution time": "Execution Time",
                      "selection": "Selected",
                      "time budget": 2500,
+                     "prerequisites": "",
                      "logger": "rbtcs"}
 
 
@@ -28,10 +29,11 @@ class StatusCode(enum.Enum):
     ERR_EXECUTION_TIME_TYPE = 9
     ERR_HEADER_ROW_NOT_FOUND = 10
     ERR_HEADER_ROW_LAST = 11
+    ERR_PREREQUISITES_TYPE = 12
 
 
 MAX_BUDGET = 10000
-MAX_TC = 300
+MAX_ITEMS = 300
 
 
 def init_logger():
@@ -82,6 +84,11 @@ def parse_arguments(arguments):
                         type=int,
                         help="specify the size of the time budget available for testing (2500 by default)",
                         dest="time_budget")
+
+    parser.add_argument("-p",
+                        default=default_arguments["prerequisites"],
+                        help="specify column name with prerequisites associated with items (no prerequisites usage by default)",
+                        dest="prerequisites")
 
     arguments.pop(0)
 
@@ -145,11 +152,16 @@ def detect_header_row(arguments, values):
     cur_row = 0
 
     while cur_row < len(values):
-        a = arguments.risk_factor in values[cur_row]
-        b = arguments.execution_time in values[cur_row]
-        c = arguments.selection in values[cur_row]
+        risk_factor_detected = arguments.risk_factor in values[cur_row]
+        exec_time_detected = arguments.execution_time in values[cur_row]
+        selection_detected = arguments.selection in values[cur_row]
+        if arguments.prerequisites == "":
+            prereq_detected = True
+        else:
+            prereq_detected = arguments.prerequisites in values[cur_row]
+
         # stop search if we found a row where all required headers are present
-        if a and b and c:
+        if risk_factor_detected and exec_time_detected and selection_detected and prereq_detected:
             break
         cur_row += 1
 
@@ -167,19 +179,9 @@ def detect_header_row(arguments, values):
         logger.debug("Risk Factor column index: %d", values[cur_row].index(arguments.risk_factor))
         logger.debug("Execution Time column index: %d", values[cur_row].index(arguments.execution_time))
         logger.debug("Selection column index: %d", values[cur_row].index(arguments.selection))
+        if arguments.prerequisites != "":
+            logger.debug("Prerequisites column index: %d", values[cur_row].index(arguments.prerequisites))
         return cur_row
-
-
-def detect_itmes(arguments, values, hdr_row):
-    """ Method searches under the header row in "interesting" columns to detect items in input data
-    
-    :param arguments: command line arguments
-    :param values: data from input file
-    :param hdr_row: header row number
-    :return: first_item_index, item_count
-    """
-    # detect first item (we assume that there may be other row between header row and the first item)
-    # detect subsequent items (should go contiguously after the 1st item till the end of the file or invalid values)
 
 
 def validate_data(arguments, values, hdr_row):
@@ -217,10 +219,31 @@ def validate_data(arguments, values, hdr_row):
             logger.critical("Can't convert Execution Time for item # %d to integer", i+1)
             return StatusCode.ERR_EXECUTION_TIME_TYPE
 
+    # check that content of <prerequisites> column is a comma-separated list with integers
+    if arguments.prerequisites != "":
+        prereq = values[hdr_row].index(arguments.prerequisites)
+        for i in range(hdr_row + 1, len(values)):
+            if values[i][prereq] != '':
+                # check if this is single-value cell (i.e. only one integer value provided as prerequisite)
+                try:
+                    single_prerequisite = int(float(values[i][prereq]))
+                except:
+                    # split comma-separated list of prerequisites into items
+                    prereq_list = values[i][prereq].split(',')
+                    for j in range(len(prereq_list)):
+                        try:
+                            single_prerequisite = int(prereq_list[j])
+                        except:
+                            # item i in values specifies item i+1 in excel (excel starts from 1)
+                            logger.critical("Can't convert Prerequisites string for item # %d to list of integers ", i + 1)
+                            return StatusCode.ERR_PREREQUISITES_TYPE
+
+    # check budget size
     if arguments.time_budget > MAX_BUDGET:
         logger.warning("Specified Time Budget is relatively big which may lead to sub-optimal solution")
 
-    if len(values)-hdr_row-1 >= MAX_TC:
+    # check item count
+    if len(values)-hdr_row-1 >= MAX_ITEMS:
         logger.warning("Number of Items in the input file is relatively big which may lead to sub-optimal solution")
 
     return StatusCode.OK
@@ -378,15 +401,18 @@ if __name__ == "__main__":
         exit(ret)
 
     # launching optimization algorithm to build test set
-    try:
-        logger.info("Building test coverage using optimal algorithm")
-        a = alg_dynamic_programming_01(arguments, data, hdr_row)
-        logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
-    except MemoryError as e:
-        logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
-        logger.info("Building test coverage using greedy approximation algorithm")
-        a = alg_greedy_01(arguments, data, hdr_row)
-        logger.info("Covered risk with proposed test set using greedy method is %f", a)
+    if arguments.prerequisites == "":
+        try:
+            logger.info("Building test coverage using optimal algorithm")
+            a = alg_dynamic_programming_01(arguments, data, hdr_row)
+            logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
+        except MemoryError as e:
+            logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
+            logger.info("Building test coverage using greedy approximation algorithm")
+            a = alg_greedy_01(arguments, data, hdr_row)
+            logger.info("Covered risk with proposed test set using greedy method is %f", a)
+    else:
+        logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
 
     write_data(arguments, data)
 

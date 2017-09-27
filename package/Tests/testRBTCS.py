@@ -28,6 +28,7 @@ class TestParseArguments(unittest.TestCase):
         self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
         self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
         self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+        self.assertEqual(args.prerequisites, rbtcs.default_arguments['prerequisites'])
 
     def test_filename(self):
         """ Testing parse_arguments() with non-default value for filename. """
@@ -37,6 +38,7 @@ class TestParseArguments(unittest.TestCase):
         self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
         self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
         self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+        self.assertEqual(args.prerequisites, rbtcs.default_arguments['prerequisites'])
 
     def test_risk_factor(self):
         """ Testing parse_arguments() with non-default values for filename, risk-factor """
@@ -47,6 +49,7 @@ class TestParseArguments(unittest.TestCase):
         self.assertEqual(args.execution_time, rbtcs.default_arguments['execution time'])
         self.assertEqual(args.selection, rbtcs.default_arguments['selection'])
         self.assertEqual(args.time_budget, rbtcs.default_arguments['time budget'])
+        self.assertEqual(args.prerequisites, rbtcs.default_arguments['prerequisites'])
 
     def test_execution_time(self):
         """ Testing parse_arguments() with non-default values for filename, risk-factor, execution-time """
@@ -90,6 +93,25 @@ class TestParseArguments(unittest.TestCase):
         self.assertEqual(args.selection, 'selected col')
         self.assertEqual(args.time_budget, 1000)
 
+    def test_prerequisites(self):
+        """ Testing parse_arguments() with non-default values for filename, risk-factor, execution-time, selection, 
+        time-budget, and prerequisites
+        """
+
+        args = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                        'test.xls',
+                                        '-r', 'risk factor col',
+                                        '-t', 'execution time col',
+                                        '-s', 'selected col',
+                                        '-b', '1000',
+                                        '-p', 'prerequisites col'])
+        self.assertEqual(args.filename, 'test.xls')
+        self.assertEqual(args.risk_factor, 'risk factor col')
+        self.assertEqual(args.execution_time, 'execution time col')
+        self.assertEqual(args.selection, 'selected col')
+        self.assertEqual(args.time_budget, 1000)
+        self.assertEqual(args.prerequisites, 'prerequisites col')
+
     def test_full_string(self):
         """ Testing parse_arguments() with non-default values using '=' sign for filename, risk-factor, execution-time, selection """
 
@@ -98,12 +120,14 @@ class TestParseArguments(unittest.TestCase):
                                       '-r=rf',
                                       '-t=et',
                                       '-s=s',
-                                      '-b=1000'])
+                                      '-b=1000',
+                                      '-p=p'])
         self.assertEqual(args.filename, 'test.xls')
         self.assertEqual(args.risk_factor, 'rf')
         self.assertEqual(args.execution_time, 'et')
         self.assertEqual(args.selection, 's')
         self.assertEqual(args.time_budget, 1000)
+        self.assertEqual(args.prerequisites, 'p')
 
 
 class TestReadWriteData(unittest.TestCase):
@@ -137,7 +161,12 @@ class TestReadWriteData(unittest.TestCase):
 
 
 class TestDetectHeaderRow(unittest.TestCase):
-    """Unit tests for detect_header_row()"""
+    """Unit tests for detect_header_row().
+    For now (due to current code structure) we can't properly test in unit tests two cases: 
+      1. when header row wasn't detected;
+      2. when header row is the last row
+    """
+
     def test_detect_header_row_0(self):
         """Test when header row is row # 0"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
@@ -172,6 +201,20 @@ class TestDetectHeaderRow(unittest.TestCase):
                                            '-t', 'Execution Cost',
                                            '-s', 'Removed (y)?',
                                            '-b=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        res = rbtcs.detect_header_row(arguments, data)
+        self.assertEqual(res, 17)
+
+    def test_detect_header_row_3(self):
+        """Test when header row is row # 17 (using risk-based worksheet as data source + prerequisites column)"""
+
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_header_row_4.xlsx',
+                                           '-r', 'Risk Value',
+                                           '-t', 'Execution Cost',
+                                           '-s', 'Removed (y)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
         data = rbtcs.read_data(arguments.filename)
         res = rbtcs.detect_header_row(arguments, data)
         self.assertEqual(res, 17)
@@ -256,6 +299,48 @@ class TestValidateData(unittest.TestCase):
         ret = rbtcs.validate_data(arguments, data, hdr_row)
         self.assertEquals(ret, rbtcs.StatusCode.ERR_EXECUTION_TIME_TYPE)
 
+    def test_validate_data_prerequisites_ok(self):
+        """ Unit test for validate_data() when prerquisites correct"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.OK)
+
+    def test_validate_data_prerequisites_err(self):
+        """ Unit test for validate_data() when prerquisites incorrect"""
+
+        # first check to verify that single non-int value caught ('a' in cell)
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites_err1.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
+
+        # second check to verify that list with non-int value caught ('1,2,ba' in cell)
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites_err1.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
 
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""
