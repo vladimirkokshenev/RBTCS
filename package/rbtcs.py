@@ -274,7 +274,7 @@ def extract_items(arguments, values, hdr_row):
 
     rf = values[hdr_row].index(arguments.risk_factor)
     et = values[hdr_row].index(arguments.execution_time)
-    sl = values[hdr_row].index(arguments.selection)
+    # sl = values[hdr_row].index(arguments.selection)
     if arguments.prerequisites != "":
         pr = values[hdr_row].index(arguments.prerequisites)
 
@@ -317,12 +317,90 @@ def write_data(arguments, values):
     wb = xlwt.Workbook()
     ws = wb.add_sheet('RBTCS')
 
-
     for r in range(len(values)):
         for c in range(len(values[0])):
             ws.write(r, c, values[r][c])
 
     wb.save('rbtcs_result.xls')
+
+
+def select_algorithm(arguments, items):
+    """
+    
+    :param arguments: parsed CLI arguments
+    :param items: extracted items (list of dictionaries)
+    :return: 
+    """
+
+    logger = logging.getLogger(default_arguments["logger"])
+
+    if arguments.prerequisites == "":
+        try:
+            logger.info("Building test coverage using optimal algorithm")
+            a = alg_dynamic_programming_01(arguments, data, hdr_row)
+            logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
+        except MemoryError as e:
+            logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
+            logger.info("Building test coverage using greedy approximation algorithm")
+            a = alg_greedy_01(arguments, data, hdr_row)
+            logger.info("Covered risk with proposed test set using greedy method is %f", a)
+    else:
+        logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
+
+
+def knapsack_01_dynamic_programming(items, budget):
+    """
+    
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values)
+    :param budget: time budget available for test coverage (comes from -b arg)
+    :return: achieved risk coverage (on the scale [0.0, 1.0])
+    """
+
+    # adding fake empty element on 0 position, just to keep matching between IDs, list element indexes and 1,2,3,...
+    items.insert(0, {})
+
+    # risk_mitigation[i][j] stores best risk coverage based on items 1..i with total execution time <=j
+    risk_mitigation = [[0.0 for j in range(budget + 1)] for i in range(0, len(items))]
+
+    # test_set[i][j] stores a test set associated with best risk coverage risk_mitigation[i][j]
+    test_set = [[[] for j in range(budget + 1)] for i in range(0, len(items))]
+
+    # solution for 0,1 knapsack problem using dynamic programming approach
+    for i in range(1, len(items)):
+        for j in range(0, budget + 1):
+
+            if items[i]["ET"] > j:
+                risk_mitigation[i][j] = risk_mitigation[i - 1][j]
+                # make sure that lists are copied, not referenced!
+                test_set[i][j] = list(test_set[i - 1][j])
+
+            else:
+                if risk_mitigation[i - 1][j] > risk_mitigation[i - 1][j - items[i]["ET"]] + items[i]["RF"]:
+                    risk_mitigation[i][j] = risk_mitigation[i - 1][j]
+                    # make sure that lists are copied, not referenced!
+                    test_set[i][j] = list(test_set[i - 1][j])
+                else:
+                    risk_mitigation[i][j] = risk_mitigation[i - 1][j - items[i]["ET"]] + items[i]["RF"]
+                    test_set[i][j] = list(test_set[i - 1][j - items[i]["ET"]])
+                    test_set[i][j].append(i)
+
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(1, len(items)):
+        total_risk_value += items[i]["RF"]
+        if i in test_set[len(items)-1][budget]:
+            items[i]["SL"] = 1
+            achieved_risk_coverage += items[i]["RF"]
+        else:
+            items[i]["SL"] = 0
+
+    # removing fake empty dict from 0 position from items
+    items.pop(0)
+
+    return achieved_risk_coverage / total_risk_value
+
+
 
 
 def alg_dynamic_programming_01(arguments, values, hdr_row):

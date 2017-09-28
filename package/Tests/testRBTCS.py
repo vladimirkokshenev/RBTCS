@@ -16,6 +16,7 @@ class TestInitLogger(unittest.TestCase):
         self.assertEquals(1, 1)
 
 
+# parse_arguments()
 class TestParseArguments(unittest.TestCase):
     """Unit tests for parse_arguments()    """
 
@@ -130,6 +131,7 @@ class TestParseArguments(unittest.TestCase):
         self.assertEqual(args.prerequisites, 'p')
 
 
+# read_data()
 class TestReadWriteData(unittest.TestCase):
     """Unit tests for read_data()    """
 
@@ -160,6 +162,7 @@ class TestReadWriteData(unittest.TestCase):
             os.remove('rbtcs_result.xls')
 
 
+# detect_header_row()
 class TestDetectHeaderRow(unittest.TestCase):
     """Unit tests for detect_header_row().
     For now (due to current code structure) we can't properly test in unit tests two cases: 
@@ -220,6 +223,7 @@ class TestDetectHeaderRow(unittest.TestCase):
         self.assertEqual(res, 17)
 
 
+# validate_data()
 class TestValidateData(unittest.TestCase):
     """Unit tests for validate_data()    """
 
@@ -348,6 +352,7 @@ class TestValidateData(unittest.TestCase):
         self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
 
 
+# extract_items()
 class TestExtractItems(unittest.TestCase):
     """Unit tests for extract_items()    """
     def test_extract_items_with_prerequisites(self):
@@ -382,6 +387,8 @@ class TestExtractItems(unittest.TestCase):
         self.assertEqual(items[0], {"ID": 1, "RF": 92.0, "ET": 23, "SL": 0})
         self.assertEqual(items[9], {"ID": 10, "RF": 72.0, "ET": 82, "SL": 0})
 
+
+# prepare_data_for_writing()
 class TestPrepareDataForWriting(unittest.TestCase):
     """Unit tests for prepare_data_for_writing()    """
     def test_prepare_data(self):
@@ -402,6 +409,168 @@ class TestPrepareDataForWriting(unittest.TestCase):
         self.assertEqual(data[hdr_row + 3][prereqind], '')
         self.assertEqual(data[hdr_row + 4][prereqind], '1,2')
         self.assertEqual(data[hdr_row + 10][prereqind], '1,2,3,4,5,6')
+
+
+# knapsack_01_dynamic_programming()
+class TestKnapsack01DP(unittest.TestCase):
+    """Unit tests for knapsack_01_dynamic_programming"""
+
+    def test_1(self):
+        """seed data <test_alg_1.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.4550810)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 0)
+        self.assertEqual(items[7]["SL"], 0)
+        self.assertEqual(items[8]["SL"], 0)
+        self.assertEqual(items[9]["SL"], 0)
+
+    def test_2(self):
+        """seed data <test_alg_2.xlsx>, time budget 26"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_2.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '26'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5604396)
+        self.assertEqual(items[0]["SL"], 0)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+
+    def test_3(self):
+        """seed data <test_alg_3.xlsx>, time budget 190"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_3.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '190'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5660377)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 0)
+
+    def test_4(self):
+        """seed data <test_alg_4.xlsx>, time budget 50"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_4.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '50'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5691489)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 0)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 0)
+
+    def test_5(self):
+        """seed data <test_alg_5.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_5.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=750'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5290276)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 0)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 1)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 0)
+        self.assertEqual(items[10]["SL"], 0)
+        self.assertEqual(items[11]["SL"], 0)
+        self.assertEqual(items[12]["SL"], 0)
+        self.assertEqual(items[13]["SL"], 1)
+        self.assertEqual(items[14]["SL"], 1)
+
+    def test_6(self):
+        """seed data <test_alg_6.xlsx>, time budget 6405"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_6.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=6405'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5228039)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 0)
+        self.assertEqual(items[7]["SL"], 0)
+        self.assertEqual(items[8]["SL"], 0)
+        self.assertEqual(items[9]["SL"], 1)
+        self.assertEqual(items[10]["SL"], 1)
+        self.assertEqual(items[11]["SL"], 0)
+        self.assertEqual(items[12]["SL"], 1)
+        self.assertEqual(items[13]["SL"], 0)
+        self.assertEqual(items[14]["SL"], 0)
+        self.assertEqual(items[15]["SL"], 1)
+        self.assertEqual(items[16]["SL"], 0)
+        self.assertEqual(items[17]["SL"], 0)
+        self.assertEqual(items[18]["SL"], 0)
+        self.assertEqual(items[19]["SL"], 0)
+        self.assertEqual(items[20]["SL"], 0)
+        self.assertEqual(items[21]["SL"], 1)
+        self.assertEqual(items[22]["SL"], 1)
+        self.assertEqual(items[23]["SL"], 1)
 
 
 class TestOptimalAlgorithms(unittest.TestCase):
@@ -487,7 +656,6 @@ class TestOptimalAlgorithms(unittest.TestCase):
                [150.0, 80, 0], [156.0, 82, 1], [163.0, 87, 0], [173.0, 90, 1], [184.0, 94, 1], [192.0, 98, 1],
                [201.0, 106, 0], [210.0, 110, 0], [214.0, 113, 0], [221.0, 115, 0], [229.0, 118, 1], [240.0, 120, 1]]
         self.assertEquals(data, sol)
-
 
     def test_6(self):
         """seed data <test_alg_6.xlsx>, time budget 6405"""
