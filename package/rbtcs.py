@@ -243,9 +243,18 @@ def validate_data(arguments, values, hdr_row):
                             logger.critical("Can't convert Prerequisites string for item # %d to list of integers ", i + 1)
                             return StatusCode.ERR_PREREQUISITES_TYPE
                         else:
+                            if single_prerequisite > len(values) - hdr_row - 1 or single_prerequisite < 1:
+                                # prerequisite number is greater than items count or less than 1
+                                logger.critical("Prerequisite value \'%d\' for item # %d is too big or too small",
+                                                single_prerequisite, i + 1)
+                                return StatusCode.ERR_PREREQUISITES_TYPE
                             prereq_list_converted.append(single_prerequisite)
                     values[i][prereq] = prereq_list_converted
                 else:
+                    if single_prerequisite > len(values) - hdr_row - 1 or single_prerequisite < 1:
+                        # prerequisite number is greater than items count or less than 1
+                        logger.critical("Prerequisite value \'%d\' for item # %d is too big or too small", single_prerequisite, i + 1)
+                        return StatusCode.ERR_PREREQUISITES_TYPE
                     prereq_list_converted.append(single_prerequisite)
                     values[i][prereq] = prereq_list_converted
 
@@ -349,7 +358,7 @@ def select_algorithm(arguments, items):
 
 
 def knapsack_01_dynamic_programming(items, budget):
-    """
+    """ Dynamic programming implementation for 01 knapsack
     
     :param items: list of items (list of dicts with rf, et, sl, id, pr values)
     :param budget: time budget available for test coverage (comes from -b arg)
@@ -401,6 +410,43 @@ def knapsack_01_dynamic_programming(items, budget):
     return achieved_risk_coverage / total_risk_value
 
 
+def knapsack_01_greedy(items, budget):
+    """ Greedy implementation for 01 knapsack
+    
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values)
+    :param budget: time budget available for test coverage (comes from -b arg)
+    :return: achieved risk coverage (on the scale [0.0, 1.0])
+    """
+
+    # calculate risk density in separate list, we also store number of original test case
+    risk_density = [[i, items[i]["RF"] / items[i]["ET"]] for i in range(0, len(items))]
+
+    # sort seed data by rf/et values
+    risk_density = sorted(risk_density, key=itemgetter(1), reverse=True)
+
+    # init remaining budget as total budget
+    remaining_budget = budget
+
+    # use greedy strategy to put as many items in a set as possible
+    # iterate through items in risk_density (which is sorted in decreasing order)
+    # and try to include item into coverage
+    for i in range(len(items)):
+        if items[risk_density[i][0]]["ET"] <= remaining_budget:
+            items[risk_density[i][0]]["SL"] = 1
+            remaining_budget -= items[risk_density[i][0]]["ET"]
+        else:
+            items[risk_density[i][0]]["SL"] = 0
+
+    # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(0, len(items)):
+        total_risk_value += items[i]["RF"]
+        if items[i]["SL"] == 1:
+            achieved_risk_coverage += items[i]["RF"]
+
+    return achieved_risk_coverage / total_risk_value
 
 
 def alg_dynamic_programming_01(arguments, values, hdr_row):

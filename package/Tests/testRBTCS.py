@@ -340,7 +340,44 @@ class TestValidateData(unittest.TestCase):
 
         # second check to verify that list with non-int value caught ('1,2,ba' in cell)
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
-                                           'test_validate_data_prerequisites_err1.xlsx',
+                                           'test_validate_data_prerequisites_err2.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
+
+        # 3rd, 4th, and 5th checks to verify that list with values below 1 or above max FRID numbers
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites_err3.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
+
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites_err4.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(ret, rbtcs.StatusCode.ERR_PREREQUISITES_TYPE)
+
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_validate_data_prerequisites_err5.xlsx',
                                            '-r', 'Risk Values',
                                            '-t', 'EXECost (MH)',
                                            '-s', 'Covered (n)?',
@@ -411,7 +448,7 @@ class TestPrepareDataForWriting(unittest.TestCase):
         self.assertEqual(data[hdr_row + 10][prereqind], '1,2,3,4,5,6')
 
 
-# knapsack_01_dynamic_programming()
+# knapsack_01_dynamic_programming(items, budget)
 class TestKnapsack01DP(unittest.TestCase):
     """Unit tests for knapsack_01_dynamic_programming"""
 
@@ -571,6 +608,144 @@ class TestKnapsack01DP(unittest.TestCase):
         self.assertEqual(items[21]["SL"], 1)
         self.assertEqual(items[22]["SL"], 1)
         self.assertEqual(items[23]["SL"], 1)
+
+
+# knapsack_01_greedy(items, budget)
+class TestKnapsack01Greedy(unittest.TestCase):
+    """ Unit tests for knapsack_01_greedy(items, budget) """
+
+    def test_1(self):
+        """seed data <test_alg_1.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.4550810)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 0)
+        self.assertEqual(items[7]["SL"], 0)
+        self.assertEqual(items[8]["SL"], 0)
+        self.assertEqual(items[9]["SL"], 0)
+
+    def test_2(self):
+        """seed data <test_alg_2.xlsx>, time budget 26"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_2.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=26'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5164835)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 0)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 0)
+
+    def test_3(self):
+        """seed data <test_alg_3.xlsx>, time budget 190"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_3.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=190'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5509434)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 0)
+
+    def test_4(self):
+        """seed data <test_alg_4.xlsx>, time budget 50"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_4.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=50'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5425532)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 0)
+
+    def test_5(self):
+        """seed data <test_alg_5.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_5.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=750'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.5228592)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 1)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 0)
+        self.assertEqual(items[10]["SL"], 0)
+        self.assertEqual(items[11]["SL"], 0)
+        self.assertEqual(items[12]["SL"], 0)
+        self.assertEqual(items[13]["SL"], 1)
+        self.assertEqual(items[14]["SL"], 1)
+
+    def test_6(self):
+        """seed data <test300.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test300.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=15000'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertEquals(rc, 1.0)
 
 
 class TestOptimalAlgorithms(unittest.TestCase):
