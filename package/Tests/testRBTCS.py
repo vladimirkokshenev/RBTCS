@@ -748,6 +748,32 @@ class TestKnapsack01Greedy(unittest.TestCase):
         self.assertEquals(rc, 1.0)
 
 
+# transitive_closure(matr)
+class TestTransitiveClosure(unittest.TestCase):
+    """ Unit tests for transitive_closure """
+
+    def test_transitive_closure_1(self):
+        """test 1"""
+        a = [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [1, 0, 1, 1, 0], [1, 0, 0, 1, 1]]
+        res = [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [1, 0, 1, 1, 0], [1, 0, 1, 1, 1]]
+        b = rbtcs.transitive_closure(a)
+        self.assertEqual(b, res)
+
+    def test_transitive_closure_2(self):
+        """test 1"""
+        a = [[1, 0, 0, 0], [0, 1, 1, 1], [0, 1, 1, 0], [1, 0, 1, 1]]
+        res = [[1, 0, 0, 0], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
+        b = rbtcs.transitive_closure(a)
+        self.assertEqual(b, res)
+
+    def test_transitive_closure_3(self):
+        """test 1"""
+        a = [[1, 0, 0, 0], [1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 1, 1]]
+        res = [[1, 0, 0, 0], [1, 1, 0, 0], [1, 1, 1, 0], [1, 1, 1, 1]]
+        b = rbtcs.transitive_closure(a)
+        self.assertEqual(b, res)
+
+
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""
 

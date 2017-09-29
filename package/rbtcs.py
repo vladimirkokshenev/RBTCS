@@ -449,6 +449,58 @@ def knapsack_01_greedy(items, budget):
     return achieved_risk_coverage / total_risk_value
 
 
+def transitive_closure(matr):
+    """
+    Calculate transitive closure of matr using Warshall's algorithm
+    :param matr: inpur 2-d array (list or matrix) representing some relation
+    :return: transitive closure of matr
+    """
+
+    # calculate matrix dimension n
+    n = len(matr)
+
+    # run Warshall's alg
+    for k in range(n):
+        for i in range(n):
+            for j in range(n):
+                matr[i][j] = matr[i][j] or (matr[i][k] and matr[k][j])
+
+    return matr
+
+def knapsack_01_prerequisites(items, budget):
+    """
+    This is implementation of greedy solution for 01 knapsack with all-neighbor constraints (i.e. prerequisites in our case)
+    
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values)
+    :param budget: time budget available for test coverage (comes from -b arg)
+    :return: achieved risk coverage (on the scale [0.0, 1.0])
+    """
+
+    # step 1: build prerequisites relation matrix
+
+    # step 2: calculate transitive closure for this relation (use Warshall's alg)
+
+    # step 3: calculate a cost of inclusion for each item honoring all it's prerequisite items,
+    # and total risk associated with them
+
+    # step 4: calculate risk per cost ratio and sort all items in descending order for this ratio
+
+    # step 5: run greedy -
+    # 5a - whenever you choose an item - you also choose all of it's prerequisites
+    #      that is why you need to update prerequisites list for all remaining items, recalculate ratios, sort again
+    # 5b - whenever you choose an item with no prerequisites
+    #       you still need update prerequisites for all remaining items, recalculate ratios, and sort again
+
+    # more on step 5
+
+    # (1) mark chosen item as selected (if it is below remaining budget)
+    #     or mark as not selected otherwise and proceed to next item
+    # (2) subtract item's cost from remaining budget
+    # (3) go through prerequisite relation matrix and remove this items from prereq of all other items
+    # (4) recalculate ratio for all remaining items
+    # (5) sort again
+    # proceed to (1) and do this while there are unmarked items
+
 def alg_dynamic_programming_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
