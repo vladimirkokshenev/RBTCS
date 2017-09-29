@@ -9,10 +9,10 @@ from operator import itemgetter
 
 default_arguments = {"rbtcs": "rbtcs.py",
                      "filename": "input.xlsx",
-                     "risk factor": "Risk Factor",
-                     "execution time": "Execution Time",
-                     "selection": "Selected",
-                     "time budget": 2500,
+                     "risk factor": "Risk Values",
+                     "execution time": "EXECost (MH)",
+                     "selection": "Covered (n)?",
+                     "time budget": 1,
                      "prerequisites": "",
                      "logger": "rbtcs"}
 
@@ -35,13 +35,14 @@ class StatusCode(enum.Enum):
 
 MAX_BUDGET = 10000
 MAX_ITEMS = 300
+EPS = 0.000001
 
 
 def init_logger():
     """ Initialize logger: set logging level, logging message format and handler """
 
     logger = logging.getLogger(default_arguments["logger"])
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
@@ -299,8 +300,9 @@ def extract_items(arguments, values, hdr_row):
     return items
 
 
-def prepare_data_for_writing(arguments, values, hdr_row):
+def prepare_data_for_writing(arguments, values, hdr_row, items):
     """ Current implementation convert prerequisites (that are stored as a list of integers) back into string.
+    Also it populates Selection column with 'y' if item selected, and 'n' if it is not.
     
     :param arguments: parsed arguments
     :param values: read data from seed file (table with test cases)
@@ -308,6 +310,7 @@ def prepare_data_for_writing(arguments, values, hdr_row):
     :return: no return value
     """
 
+    # restore prerequisites string
     prereq = values[hdr_row].index(arguments.prerequisites)
     for i in range(hdr_row + 1, len(values)):
         if values[i][prereq] == []:
@@ -320,6 +323,15 @@ def prepare_data_for_writing(arguments, values, hdr_row):
                 else:
                     prereq_str = prereq_str + ',' + str(values[i][prereq][j])
             values[i][prereq] = prereq_str
+
+    sl = values[hdr_row].index(arguments.selection)
+
+    # populate selection column with y/n
+    for i in range(len(items)):
+        if items[i]["SL"] == 1:
+            values[hdr_row + 1 + i][sl] = 'y'
+        else:
+            values[hdr_row + 1 + i][sl] = 'n'
 
 
 def write_data(arguments, values):
@@ -488,14 +500,17 @@ def knapsack_01_greedy_cumulative_ratio(items, prereq_matr):
             # following code will apply risk and cost of prerequisites and the item itself
             # as prereq_matr[i][i]==1 - i.e it is a reflexive relation)
             if prereq_matr[i][k] == 1:
-                cumulative_risk += items[i]["RF"]
-                cumulative_cost += items[i]["ET"]
-        cumulative_ratio.append([i, cumulative_risk/cumulative_cost])
+                cumulative_risk += items[k]["RF"]
+                cumulative_cost += items[k]["ET"]
+        if cumulative_cost != 0:
+            cumulative_ratio.append([i, cumulative_risk/cumulative_cost, cumulative_cost])
+        else:
+            cumulative_ratio.append([i, 0.0, cumulative_cost])
 
     return cumulative_ratio
 
 
-def knapsack_01_prerequisites(items, budget):
+def knapsack_01_greedy_prerequisites(items, budget):
     """
     This is implementation of greedy solution for 01 knapsack with all-neighbor constraints (i.e. prerequisites in our case)
     
@@ -507,39 +522,71 @@ def knapsack_01_prerequisites(items, budget):
     # init n as a number of items
     n = len(items)
 
-    # add
-
     # step 1: build prerequisites relation matrix
     pr_matrix = [[0 for j in range(n)] for i in range(n)]
     for i in range(n):
         pr_matrix[i][i] = 1
         for prereq in items[i]["PR"]:
-            pr_matrix[i][prereq] = 1
+            # items are based from 0, prerequisites in input file are based from 1
+            # that is why we need to use prereq-1
+            pr_matrix[i][prereq-1] = 1
 
     # step 2: calculate transitive closure for this relation (use Warshall's alg)
     pr_matrix = transitive_closure(pr_matrix)
 
-    # step 3: calculate a cost of inclusion for each item honoring all it's prerequisite items,
-    # and total risk associated with them
-    cumulative_risk_value = [[i, 0.0] for i in range(n)]
+    # init variables
+    remaining_budget = budget
+    need_to_proceed = True
 
-    # step 4: calculate risk per cost ratio and sort all items in descending order for this ratio
+    while need_to_proceed:
+        # change proceed flag
+        need_to_proceed = False
 
-    # step 5: run greedy -
-    # 5a - whenever you choose an item - you also choose all of it's prerequisites
-    #      that is why you need to update prerequisites list for all remaining items, recalculate ratios, sort again
-    # 5b - whenever you choose an item with no prerequisites
-    #       you still need update prerequisites for all remaining items, recalculate ratios, and sort again
+        # (1) calculate a cost of inclusion for each item honoring all it's prerequisite items,
+        # total risk associated with them, calculate risk per cost ratio, and overall inclusion cost.
+        cumulative_ratio = knapsack_01_greedy_cumulative_ratio(items, pr_matrix)
 
-    # more on step 5
+        # (2) sort cumulative_ratio list by ratio value in descending order
+        cumulative_ratio = sorted(cumulative_ratio, key=itemgetter(1), reverse=True)
 
-    # (1) mark chosen item as selected (if it is below remaining budget)
-    #     or mark as not selected otherwise and proceed to next item
-    # (2) subtract item's cost from remaining budget
-    # (3) go through prerequisite relation matrix and remove this items from prereq of all other items
-    # (4) recalculate ratio for all remaining items
-    # (5) sort again
-    # proceed to (1) and do this while there are unmarked items
+        # (3) walk through the list until you find an item that you can choose
+        for i in range(n):
+            if (cumulative_ratio[i][2] <= remaining_budget+EPS) and (cumulative_ratio[i][1] > 0.0+EPS):
+                # then we can choose this item and all it's prerequisites
+                # item number of chosen item is stored in cumulative_ratio[i[0]]
+                chosen_item = cumulative_ratio[i][0]
+
+                # scan prereq relation table row <chosen_item> to find the full list of items for inclusion
+                for k in range(n):
+                    if pr_matrix[chosen_item][k] == 1:
+                        # then we need to choose this item as it is either chosen item or it's prerequisite
+                        items[k]["SL"] = 1
+
+                        # adjust remaining_budget
+                        remaining_budget -= items[k]["ET"]
+
+                        # exclude this element from prerequisite list of all other element
+                        # to do so just nullify column k in relation table
+                        for j in range(n):
+                            pr_matrix[j][k] = 0
+
+                # as we chose some items, we need to change flag to true, as another walk is required
+                need_to_proceed = True
+
+                # we should stop for loop after we found an item to choose
+                break
+
+    # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(n):
+        total_risk_value += items[i]["RF"]
+        if items[i]["SL"] == 1:
+            achieved_risk_coverage += items[i]["RF"]
+
+    return achieved_risk_coverage / total_risk_value
+
 
 def alg_dynamic_programming_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
@@ -680,22 +727,29 @@ if __name__ == "__main__":
     if ret != StatusCode.OK:
         exit(ret)
 
+    # extract items
+    items = extract_items(arguments, data, hdr_row)
+
     # launching optimization algorithm to build test set
     if arguments.prerequisites == "":
         try:
             logger.info("Building test coverage using optimal algorithm")
-            a = alg_dynamic_programming_01(arguments, data, hdr_row)
-            logger.info("Covered risk with proposed test set using optimal algorithms is %f", a)
+            rc = knapsack_01_dynamic_programming(items, arguments.time_budget)
+            logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
         except MemoryError as e:
-            logger.error("Caught MemoryError exception while building test set using dynamic programming algorithm for 01 knapsack problem")
+            logger.error("Caught MemoryError exception while running optimal algorithm")
             logger.info("Building test coverage using greedy approximation algorithm")
-            a = alg_greedy_01(arguments, data, hdr_row)
-            logger.info("Covered risk with proposed test set using greedy method is %f", a)
+            rc = knapsack_01_greedy(items, arguments.time_budget)
+            logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
     else:
         logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
+        rc = knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
 
-    prepare_data_for_writing(arguments, data, hdr_row)
+    # prepare data for writing
+    prepare_data_for_writing(arguments, data, hdr_row, items)
 
+    # write data to output file
     try:
         write_data(arguments, data)
     except Exception as e:
@@ -703,4 +757,4 @@ if __name__ == "__main__":
         logger.debug("XLWT Exception: %s", e.message)
         exit(StatusCode.ERR_XLWT_WRITE)
 
-    exit(StatusCode.OK)
+    # exit(StatusCode.OK)

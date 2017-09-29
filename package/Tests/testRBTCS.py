@@ -440,12 +440,22 @@ class TestPrepareDataForWriting(unittest.TestCase):
         data = rbtcs.read_data(arguments.filename)
         hdr_row = rbtcs.detect_header_row(arguments, data)
         ret = rbtcs.validate_data(arguments, data, hdr_row)
-        rbtcs.prepare_data_for_writing(arguments, data, hdr_row)
-        prereqind = data[hdr_row].index(arguments.prerequisites)
-        self.assertEqual(data[hdr_row + 2][prereqind], '1')
-        self.assertEqual(data[hdr_row + 3][prereqind], '')
-        self.assertEqual(data[hdr_row + 4][prereqind], '1,2')
-        self.assertEqual(data[hdr_row + 10][prereqind], '1,2,3,4,5,6')
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        items[1]["SL"] = 1
+        items[2]["SL"] = 0
+        items[3]["SL"] = 1
+        items[9]["SL"] = 0
+        rbtcs.prepare_data_for_writing(arguments, data, hdr_row, items)
+        pr = data[hdr_row].index(arguments.prerequisites)
+        sl = data[hdr_row].index(arguments.selection)
+        self.assertEqual(data[hdr_row + 2][pr], '1')
+        self.assertEqual(data[hdr_row + 2][sl], 'y')
+        self.assertEqual(data[hdr_row + 3][pr], '')
+        self.assertEqual(data[hdr_row + 3][sl], 'n')
+        self.assertEqual(data[hdr_row + 4][pr], '1,2')
+        self.assertEqual(data[hdr_row + 4][sl], 'y')
+        self.assertEqual(data[hdr_row + 10][pr], '1,2,3,4,5,6')
+        self.assertEqual(data[hdr_row + 10][sl], 'n')
 
 
 # knapsack_01_dynamic_programming(items, budget)
@@ -780,10 +790,134 @@ class TestCumulativeRatio(unittest.TestCase):
 
     def test_cumulative_ratio_1(self):
         """test 1"""
-        a = [{"ID": 0, "RF": 5.0, "ET": 10, "SL": 0, "PR": []}, {}]
-        res = [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [1, 0, 1, 1, 0], [1, 0, 1, 1, 1]]
-        b = rbtcs.transitive_closure(a)
-        self.assertEqual(b, res)
+        items = [{"ID": 0, "RF": 5.0, "ET": 10, "SL": 0, "PR": []},
+                 {"ID": 1, "RF": 2.0, "ET": 1, "SL": 0, "PR": [1]}]
+        prereq_matr = [[1, 0], [1, 1]]
+        cumulative_ratio = rbtcs.knapsack_01_greedy_cumulative_ratio(items, prereq_matr)
+        self.assertEqual(cumulative_ratio[0][1], 0.5)
+        self.assertEqual(cumulative_ratio[0][2], 10)
+        self.assertAlmostEqual(cumulative_ratio[1][1], 0.6363636)
+        self.assertEqual(cumulative_ratio[1][2], 11)
+
+    def test_cumulative_ratio_2(self):
+        """test 2"""
+        items = [{"ID": 0, "RF": 5.0, "ET": 10, "SL": 0, "PR": []},
+                 {"ID": 1, "RF": 2.0, "ET": 1, "SL": 0, "PR": [1]},
+                 {"ID": 2, "RF": 4.0, "ET": 4, "SL": 0, "PR": [0]},
+                 {"ID": 3, "RF": 1.0, "ET": 1, "SL": 0, "PR": [1, 2, 3]}]
+
+        prereq_matr = [[1, 0, 0, 0], [1, 1, 0, 0], [0, 0, 1, 0], [1, 1, 1, 1]]
+        cumulative_ratio = rbtcs.knapsack_01_greedy_cumulative_ratio(items, prereq_matr)
+        self.assertEqual(cumulative_ratio[0][1], 0.5)
+        self.assertAlmostEqual(cumulative_ratio[1][1], 0.6363636)
+        self.assertAlmostEqual(cumulative_ratio[2][1], 1.0)
+        self.assertAlmostEqual(cumulative_ratio[3][1], 0.75)
+
+    def test_cumulative_ratio_3(self):
+        """test 1"""
+        items = [{"ID": 0, "RF": 0.0, "ET": 0, "SL": 0, "PR": []},
+                 {"ID": 1, "RF": 2.0, "ET": 1, "SL": 0, "PR": [1]}]
+        prereq_matr = [[1, 0], [1, 1]]
+        cumulative_ratio = rbtcs.knapsack_01_greedy_cumulative_ratio(items, prereq_matr)
+        self.assertEqual(cumulative_ratio[0][1], 0.0)
+        self.assertEqual(cumulative_ratio[0][2], 0)
+        self.assertAlmostEqual(cumulative_ratio[1][1], 2.0)
+        self.assertEqual(cumulative_ratio[1][2], 1)
+
+
+# knapsack_01_greedy_prerequisites(items, budget)
+class TestKnapsack01GreedyPrerequisites(unittest.TestCase):
+    """ Unit tests for knapsack_01_greedy_prerequisites(items, budget) """
+
+    def test_1(self):
+        """seed data <test_greedy_prerequisites_1.xlsx>, time budget 56"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_greedy_prerequisites_1.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b', '56',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 1.0)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 1)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 1)
+
+    def test_2(self):
+        """seed data <test_greedy_prerequisites_1.xlsx>, time budget 40"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_greedy_prerequisites_1.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b', '40',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.7562879)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 0)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 0)
+
+    def test_3(self):
+        """ Test single walk case"""
+        items = [{"ID":1, "RF": 1.0, "ET": 1, "SL": 0, "PR": []},
+                 {"ID":2, "RF": 2.0, "ET": 2, "SL": 0, "PR": []},
+                 {"ID":3, "RF": 10.0, "ET": 1, "SL": 0, "PR": [1, 2]}]
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, 4)
+        self.assertAlmostEqual(rc, 1.0)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+
+    def test_4(self):
+        """seed data <test_greedy_prerequisites_2.xlsx>, time budget 40"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_greedy_prerequisites_2.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b', '60',
+                                           '-p', 'Prerequisites'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.87473904)
+        self.assertEqual(items[0]["SL"], 0)
+        self.assertEqual(items[1]["SL"], 0)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 1)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 1)
+
 
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""
