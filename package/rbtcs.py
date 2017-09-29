@@ -467,6 +467,34 @@ def transitive_closure(matr):
 
     return matr
 
+
+def knapsack_01_greedy_cumulative_ratio(items, prereq_matr):
+    """
+    Takes item list and transitive closure of prerequisite relation and calculates cumulative ratio of risk per cost for items.
+    Cumulative ratio is a sum of item risk and all risks of all prerequisites of the item, divided by sun of item cost
+    and sum of costs of all prerequisites.
+    
+    :param items: list of items
+    :param prereq_matr: transitive closure of prerequisites relation
+    :return: list of lists where every element is a i, ratio pair. i - item index. ratio - cumulative ration for item i.
+    """
+
+    cumulative_ratio = []
+    n = len(items)
+    for i in range(n):
+        cumulative_risk = 0.0
+        cumulative_cost = 0.0
+        for k in range(n):
+            # following code will apply risk and cost of prerequisites and the item itself
+            # as prereq_matr[i][i]==1 - i.e it is a reflexive relation)
+            if prereq_matr[i][k] == 1:
+                cumulative_risk += items[i]["RF"]
+                cumulative_cost += items[i]["ET"]
+        cumulative_ratio.append([i, cumulative_risk/cumulative_cost])
+
+    return cumulative_ratio
+
+
 def knapsack_01_prerequisites(items, budget):
     """
     This is implementation of greedy solution for 01 knapsack with all-neighbor constraints (i.e. prerequisites in our case)
@@ -476,12 +504,24 @@ def knapsack_01_prerequisites(items, budget):
     :return: achieved risk coverage (on the scale [0.0, 1.0])
     """
 
+    # init n as a number of items
+    n = len(items)
+
+    # add
+
     # step 1: build prerequisites relation matrix
+    pr_matrix = [[0 for j in range(n)] for i in range(n)]
+    for i in range(n):
+        pr_matrix[i][i] = 1
+        for prereq in items[i]["PR"]:
+            pr_matrix[i][prereq] = 1
 
     # step 2: calculate transitive closure for this relation (use Warshall's alg)
+    pr_matrix = transitive_closure(pr_matrix)
 
     # step 3: calculate a cost of inclusion for each item honoring all it's prerequisite items,
     # and total risk associated with them
+    cumulative_risk_value = [[i, 0.0] for i in range(n)]
 
     # step 4: calculate risk per cost ratio and sort all items in descending order for this ratio
 

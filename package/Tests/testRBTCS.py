@@ -774,6 +774,17 @@ class TestTransitiveClosure(unittest.TestCase):
         self.assertEqual(b, res)
 
 
+# knapsack_01_greedy_cumulative_ratio(items, prereq_matr)
+class TestCumulativeRatio(unittest.TestCase):
+    """ Unit tests for knapsack_01_greedy_cumulative_ratio(items, prereq_matr) """
+
+    def test_cumulative_ratio_1(self):
+        """test 1"""
+        a = [{"ID": 0, "RF": 5.0, "ET": 10, "SL": 0, "PR": []}, {}]
+        res = [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [1, 0, 1, 0, 0], [1, 0, 1, 1, 0], [1, 0, 1, 1, 1]]
+        b = rbtcs.transitive_closure(a)
+        self.assertEqual(b, res)
+
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""
 
