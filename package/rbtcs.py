@@ -89,7 +89,7 @@ def parse_arguments(arguments):
 
     parser.add_argument("-p",
                         default=default_arguments["prerequisites"],
-                        help="specify column name with prerequisites associated with items (no prerequisites usage by default)",
+                        help="specify column name with preconditions associated with items (items preconditions are not honored by default)",
                         dest="prerequisites")
 
     arguments.pop(0)
@@ -182,7 +182,7 @@ def detect_header_row(arguments, values):
         logger.debug("Execution Time column index: %d", values[cur_row].index(arguments.execution_time))
         logger.debug("Selection column index: %d", values[cur_row].index(arguments.selection))
         if arguments.prerequisites != "":
-            logger.debug("Prerequisites column index: %d", values[cur_row].index(arguments.prerequisites))
+            logger.debug("Preconditions column index: %d", values[cur_row].index(arguments.prerequisites))
         return cur_row
 
 
@@ -241,12 +241,12 @@ def validate_data(arguments, values, hdr_row):
                             single_prerequisite = int(prereq_list[j])
                         except:
                             # item i in values specifies item i+1 in excel (excel starts from 1)
-                            logger.critical("Can't convert Prerequisites string for item # %d to list of integers ", i + 1)
+                            logger.critical("Can't convert Preconditions string for item # %d to list of integers ", i + 1)
                             return StatusCode.ERR_PREREQUISITES_TYPE
                         else:
                             if single_prerequisite > len(values) - hdr_row - 1 or single_prerequisite < 1:
                                 # prerequisite number is greater than items count or less than 1
-                                logger.critical("Prerequisite value \'%d\' for item # %d is too big or too small",
+                                logger.critical("Precondition value \'%d\' for item # %d is too big or too small",
                                                 single_prerequisite, i + 1)
                                 return StatusCode.ERR_PREREQUISITES_TYPE
                             prereq_list_converted.append(single_prerequisite)
@@ -254,7 +254,7 @@ def validate_data(arguments, values, hdr_row):
                 else:
                     if single_prerequisite > len(values) - hdr_row - 1 or single_prerequisite < 1:
                         # prerequisite number is greater than items count or less than 1
-                        logger.critical("Prerequisite value \'%d\' for item # %d is too big or too small", single_prerequisite, i + 1)
+                        logger.critical("Precondition value \'%d\' for item # %d is too big or too small", single_prerequisite, i + 1)
                         return StatusCode.ERR_PREREQUISITES_TYPE
                     prereq_list_converted.append(single_prerequisite)
                     values[i][prereq] = prereq_list_converted
