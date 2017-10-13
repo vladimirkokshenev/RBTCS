@@ -7,6 +7,8 @@ import logging
 import enum
 from operator import itemgetter
 
+
+# default values for command line arguments
 default_arguments = {"rbtcs": "rbtcs.py",
                      "filename": "input.xlsx",
                      "risk factor": "Risk Values",
@@ -17,6 +19,7 @@ default_arguments = {"rbtcs": "rbtcs.py",
                      "logger": "rbtcs"}
 
 
+# declaration of status codes
 class StatusCode(enum.Enum):
     OK = 1
     ERR_FILE_NOT_FOUND = 2
@@ -33,9 +36,21 @@ class StatusCode(enum.Enum):
     ERR_XLWT_WRITE = 13
 
 
+# CONSTANTS DECLARATION
+# budget threshold to generate warning that high budget may lead to high complexity
 MAX_BUDGET = 10000
+# item count threshold to generate warning that high number of items may lead to high complexity
 MAX_ITEMS = 300
+# acceptable floating point error
 EPS = 0.000001
+# item was excluded by algorithm from the final coverage
+ITEM_EXCLUDED_BY_ALG = 0
+# item was selected by algorithm for the final coverage
+ITEM_SELECTED_BY_ALG = 1
+# item was excluded by user in an input file (it must not be included into final coverage)
+ITEM_EXCLUDED_BY_USER = 10
+# item was selected by user in an input file (it must be included into final coverage)
+ITEM_SELECTED_BY_USER = 11
 
 
 def init_logger():
@@ -45,7 +60,7 @@ def init_logger():
     logger.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     console_handler.setFormatter(formatter)
@@ -284,7 +299,7 @@ def extract_items(arguments, values, hdr_row):
 
     rf = values[hdr_row].index(arguments.risk_factor)
     et = values[hdr_row].index(arguments.execution_time)
-    # sl = values[hdr_row].index(arguments.selection)
+    sl = values[hdr_row].index(arguments.selection)
     if arguments.prerequisites != "":
         pr = values[hdr_row].index(arguments.prerequisites)
 
@@ -293,11 +308,34 @@ def extract_items(arguments, values, hdr_row):
         items[-1]["ID"] = i - hdr_row
         items[-1]["RF"] = values[i][rf]
         items[-1]["ET"] = values[i][et]
-        items[-1]["SL"] = 0
+
+        # handle seeding data
+        seed_inclusion_marks = ('y', 'Y')
+        seed_exclusion_marks = ('n', 'N')
+        items[-1]["SL"] = ITEM_EXCLUDED_BY_ALG
+
+        if values[i][sl] in seed_inclusion_marks:
+            items[-1]["SL"] = ITEM_SELECTED_BY_USER
+        if values[i][sl] in seed_exclusion_marks:
+            items[-1]["SL"] = ITEM_EXCLUDED_BY_USER
+
+        # handle preconditions
         if arguments.prerequisites != "":
-            items[-1]["PR"] = list(values[i][pr])
+            items[-1]["PR"] = list(set(values[i][pr]))
 
     return items
+
+
+def split_seeded_items(items, arguments):
+    """
+    The method will extract seeded items from items list, and put them into separate list. 
+    It will update budget (as it should be reduced according to execution time of all pre-selected items.
+    It will also update preconditions, as pre-selected items can be removed from preconditions of remaining items.
+    It will also remove items, that have precondition referring to one of excluded by user item.
+    :param items: item list extracted from the input data
+    :param arguments: command line arguments
+    :return: seeded_items list (those items that were marked with 'y' or 'n' in the item selection row in input file)
+    """
 
 
 def prepare_data_for_writing(arguments, values, hdr_row, items):
@@ -488,7 +526,10 @@ def knapsack_01_greedy_cumulative_ratio(items, prereq_matr):
     
     :param items: list of items
     :param prereq_matr: transitive closure of prerequisites relation
-    :return: list of lists where every element is a i, ratio pair. i - item index. ratio - cumulative ration for item i.
+    :return: list of lists where every element is a [i, ratio, cost]. 
+             i - item index, 
+             ratio - cumulative ration for item i,
+             cost - cumulative cost for item i.
     """
 
     cumulative_ratio = []
@@ -551,7 +592,7 @@ def knapsack_01_greedy_prerequisites(items, budget):
 
         # (3) walk through the list until you find an item that you can choose
         for i in range(n):
-            if (cumulative_ratio[i][2] <= remaining_budget+EPS) and (cumulative_ratio[i][1] > 0.0+EPS):
+            if (cumulative_ratio[i][2] <= remaining_budget+EPS) and (cumulative_ratio[i][1] > 0.0+EPS) and (items[cumulative_ratio[i][0]]["SL"] != 1):
                 # then we can choose this item and all it's prerequisites
                 # item number of chosen item is stored in cumulative_ratio[i[0]]
                 chosen_item = cumulative_ratio[i][0]
@@ -573,7 +614,7 @@ def knapsack_01_greedy_prerequisites(items, budget):
                 # as we chose some items, we need to change flag to true, as another walk is required
                 need_to_proceed = True
 
-                # we should stop for loop after we found an item to choose
+                # we should stop for-loop after we found an item to choose
                 break
 
     # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
@@ -742,7 +783,7 @@ if __name__ == "__main__":
             rc = knapsack_01_greedy(items, arguments.time_budget)
             logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
     else:
-        logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
+        logger.info("Building test coverage using greedy approximation algorithm with preconditions support")
         rc = knapsack_01_greedy_prerequisites(items, arguments.time_budget)
         logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
 

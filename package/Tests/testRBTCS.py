@@ -393,7 +393,7 @@ class TestValidateData(unittest.TestCase):
 class TestExtractItems(unittest.TestCase):
     """Unit tests for extract_items()    """
     def test_extract_items_with_prerequisites(self):
-        """ Unit test for extract_items() with prerequisites """
+        """ Unit test for extract_items() with prerequisites (single precondition, list of preconditions, list with duplicates """
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_validate_data_prerequisites.xlsx',
                                            '-r', 'Risk Values',
@@ -405,9 +405,10 @@ class TestExtractItems(unittest.TestCase):
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
         items = rbtcs.extract_items(arguments, data, hdr_row)
-        self.assertEqual(items[0], {"ID": 1, "RF": 2.0, "ET": 2, "SL": 0, "PR": []})
-        self.assertEqual(items[1], {"ID": 2, "RF": 8.0, "ET": 3, "SL": 0, "PR": [1]})
-        self.assertEqual(items[9], {"ID": 10, "RF": 19.833333333333332, "ET": 1, "SL": 0, "PR": [1, 2, 3, 4, 5, 6]})
+        self.assertEqual(items[0], {"ID": 1, "RF": 2.0, "ET": 2, "SL": rbtcs.ITEM_SELECTED_BY_USER, "PR": []})
+        self.assertEqual(items[1], {"ID": 2, "RF": 8.0, "ET": 3, "SL": rbtcs.ITEM_EXCLUDED_BY_USER, "PR": [1]})
+        self.assertEqual(items[8], {"ID": 9, "RF": 17.333333333333332, "ET": 4, "SL": rbtcs.ITEM_SELECTED_BY_USER, "PR": [1, 2, 3]})
+        self.assertEqual(items[9], {"ID": 10, "RF": 19.833333333333332, "ET": 1, "SL": rbtcs.ITEM_EXCLUDED_BY_ALG, "PR": [1, 2, 3, 4, 5, 6]})
 
     def test_extract_items_with_no_prerequisites(self):
         """ Unit test for extract_items() without prerequisites """
@@ -421,8 +422,24 @@ class TestExtractItems(unittest.TestCase):
         hdr_row = rbtcs.detect_header_row(arguments, data)
         rbtcs.validate_data(arguments, data, hdr_row)
         items = rbtcs.extract_items(arguments, data, hdr_row)
-        self.assertEqual(items[0], {"ID": 1, "RF": 92.0, "ET": 23, "SL": 0})
-        self.assertEqual(items[9], {"ID": 10, "RF": 72.0, "ET": 82, "SL": 0})
+        self.assertEqual(items[0], {"ID": 1, "RF": 92.0, "ET": 23, "SL": rbtcs.ITEM_EXCLUDED_BY_ALG})
+        self.assertEqual(items[9], {"ID": 10, "RF": 72.0, "ET": 82, "SL": rbtcs.ITEM_EXCLUDED_BY_ALG})
+
+    def test_extract_items_with_seed(self):
+        """ Unit test for extract_items() with seed data """
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_extract_items_seed.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        self.assertEqual(items[0], {"ID": 1, "RF": 2.0, "ET": 2, "SL": rbtcs.ITEM_EXCLUDED_BY_ALG})
+        self.assertEqual(items[2], {"ID": 3, "RF": 18.0, "ET": 4, "SL": rbtcs.ITEM_SELECTED_BY_USER})
+        self.assertEqual(items[6], {"ID": 7, "RF": 9.0, "ET": 10, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
 
 
 # prepare_data_for_writing()
@@ -893,7 +910,7 @@ class TestKnapsack01GreedyPrerequisites(unittest.TestCase):
         self.assertEqual(items[2]["SL"], 1)
 
     def test_4(self):
-        """seed data <test_greedy_prerequisites_2.xlsx>, time budget 40"""
+        """seed data <test_greedy_prerequisites_2.xlsx>, time budget 60"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
                                            'test_greedy_prerequisites_2.xlsx',
                                            '-r', 'Risk Values',
@@ -918,6 +935,55 @@ class TestKnapsack01GreedyPrerequisites(unittest.TestCase):
         self.assertEqual(items[8]["SL"], 1)
         self.assertEqual(items[9]["SL"], 1)
 
+    def test_cyclic_preconditions(self):
+        """seed data <test_greedy_cyclic_preconditions.xlsx>, time budget 78 and 79"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_greedy_cyclic_preconditions.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b', '78',
+                                           '-p', 'Preconditions'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.0)
+        self.assertEqual(items[0]["SL"], 0)
+        self.assertEqual(items[1]["SL"], 0)
+        self.assertEqual(items[2]["SL"], 0)
+        self.assertEqual(items[3]["SL"], 0)
+        self.assertEqual(items[4]["SL"], 0)
+        self.assertEqual(items[5]["SL"], 0)
+        self.assertEqual(items[6]["SL"], 0)
+        self.assertEqual(items[7]["SL"], 0)
+        self.assertEqual(items[8]["SL"], 0)
+        self.assertEqual(items[9]["SL"], 0)
+        self.assertEqual(items[10]["SL"], 0)
+        self.assertEqual(items[11]["SL"], 0)
+        self.assertEqual(items[12]["SL"], 0)
+        self.assertEqual(items[13]["SL"], 0)
+        self.assertEqual(items[14]["SL"], 0)
+
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rc = rbtcs.knapsack_01_greedy_prerequisites(items, arguments.time_budget+1)
+        self.assertAlmostEqual(rc, 1.0)
+        self.assertEqual(items[0]["SL"], 1)
+        self.assertEqual(items[1]["SL"], 1)
+        self.assertEqual(items[2]["SL"], 1)
+        self.assertEqual(items[3]["SL"], 1)
+        self.assertEqual(items[4]["SL"], 1)
+        self.assertEqual(items[5]["SL"], 1)
+        self.assertEqual(items[6]["SL"], 1)
+        self.assertEqual(items[7]["SL"], 1)
+        self.assertEqual(items[8]["SL"], 1)
+        self.assertEqual(items[9]["SL"], 1)
+        self.assertEqual(items[10]["SL"], 1)
+        self.assertEqual(items[11]["SL"], 1)
+        self.assertEqual(items[12]["SL"], 1)
+        self.assertEqual(items[13]["SL"], 1)
+        self.assertEqual(items[14]["SL"], 1)
 
 class TestOptimalAlgorithms(unittest.TestCase):
     """Unit tests for all implementations of algorithms with optimal solution"""
