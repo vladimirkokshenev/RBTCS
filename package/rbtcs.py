@@ -334,6 +334,47 @@ def extract_items(arguments, values, hdr_row):
     return items
 
 
+def handle_seeding_data_no_preconditions(items, arguments):
+    """
+    This method is used in case when there are no preconditions specified between items.
+    It calculates prebooked budget, checks for consistency, adjusts remaining budget.
+    Logs number of detected seeded items.
+    :param items: item list extracted from the input data
+    :param arguments: command line arguments
+    :return: StatusCode.OK or StatusCode.ERR_SEEDING_CONTRADICTION
+    """
+
+    logger = logging.getLogger(default_arguments["logger"])
+    n = len(items)
+
+    explicit_negative_seeding = 0
+    explicit_positive_seeding = 0
+    prebooked_budget = 0
+
+    for i in range(n):
+        if items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
+            explicit_negative_seeding += 1
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER:
+            explicit_positive_seeding += 1
+            prebooked_budget += items[i]["ET"]
+
+    logger.info("%d items were identified as explicitly excluded by user", explicit_negative_seeding)
+    logger.info("%d items were identified as explicitly selected by user", explicit_positive_seeding)
+
+    if prebooked_budget > arguments.time_budget:
+        logger.critical("Contradiction detected for seeding data: budget of all items selected by user is %d and it exceeds available time budget of %d",
+                        prebooked_budget, arguments.time_budget)
+        return StatusCode.ERR_SEEDING_CONTRADICTION
+
+    # adjust budget available for algorithm
+    arguments.time_budget = arguments.time_budget - prebooked_budget
+
+    logger.info("Budget prebooked with seeding is %d, budget remaining for algorithm is %d",
+                prebooked_budget, arguments.time_budget)
+
+    return StatusCode.OK
+
+
 def handle_seeding_data(items, arguments, hdr_row):
     """
     The method will calculate precondition relationship matrix to check seeding data for contradictions. 
@@ -344,7 +385,7 @@ def handle_seeding_data(items, arguments, hdr_row):
     :param items: item list extracted from the input data
     :param arguments: command line arguments
     :param hdr_row: header row number
-    :return: no return value
+    :return: StatusCode.OK or StatusCode.ERR_SEEDING_CONTRADICTION
     """
 
     logger = logging.getLogger(default_arguments["logger"])
@@ -432,19 +473,20 @@ def prepare_data_for_writing(arguments, values, hdr_row, items):
     :return: no return value
     """
 
-    # restore prerequisites string
-    prereq = values[hdr_row].index(arguments.prerequisites)
-    for i in range(hdr_row + 1, len(values)):
-        if values[i][prereq] == []:
-            values[i][prereq] = ""
-        else:
-            prereq_str = ""
-            for j in range(len(values[i][prereq])):
-                if prereq_str == "":
-                    prereq_str = prereq_str + str(values[i][prereq][j])
-                else:
-                    prereq_str = prereq_str + ',' + str(values[i][prereq][j])
-            values[i][prereq] = prereq_str
+    if arguments.prerequisites != "":
+        # restore prerequisites string if it exists
+        prereq = values[hdr_row].index(arguments.prerequisites)
+        for i in range(hdr_row + 1, len(values)):
+            if values[i][prereq] == []:
+                values[i][prereq] = ""
+            else:
+                prereq_str = ""
+                for j in range(len(values[i][prereq])):
+                    if prereq_str == "":
+                        prereq_str = prereq_str + str(values[i][prereq][j])
+                    else:
+                        prereq_str = prereq_str + ',' + str(values[i][prereq][j])
+                values[i][prereq] = prereq_str
 
     sl = values[hdr_row].index(arguments.selection)
 
@@ -467,6 +509,7 @@ def write_data(arguments, values):
     wb.save('rbtcs_result.xls')
 
 
+# seems to be old and can be removed
 def select_algorithm(arguments, items):
     """
     
@@ -491,6 +534,48 @@ def select_algorithm(arguments, items):
         logger.info("Building test coverage using greedy approximation algorithm with prerequisites support")
 
 
+def extract_seeded_items(items):
+    """
+    This function is used by knapsack_01_dynamic_programming() to extract seeded items from items list,
+    and store them separately. Dynamic programming algorithm will be launch on non-seeded items only with
+    modified budget. It is valid operation as knapsack_01_dynamic_programming() is used only when no
+    preconditions exist, so when you extract items from the list you don't need to adjust preconditions.
+    
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values), seeded items will be popped from it. 
+    :return: seeded_items list with seeded items.
+    """
+
+    seeded_items = []
+    i = 0
+    while i < len(items):
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER or items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
+            item = items.pop(i)
+            seeded_items.append(item)
+        else:
+            # increase i only in case if there was no item popping on the current iteration
+            i += 1
+
+    return seeded_items
+
+
+def merge_back_seeded_items(items, seeded_items):
+    """
+    The function to merge back seeded_items list into items list.
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values)
+    :param seeded_items: list of seeded items, that were previously popped from overall items list.
+    :return: items as a merged and sorted list
+    """
+
+    while len(seeded_items) > 0:
+        i = 0
+        while seeded_items[0]["ID"] > items[i]["ID"]:
+            i += 1
+        item = seeded_items.pop(0)
+        items.insert(i, item)
+
+    return items
+
+
 def knapsack_01_dynamic_programming(items, budget):
     """ Dynamic programming implementation for 01 knapsack
     
@@ -498,6 +583,9 @@ def knapsack_01_dynamic_programming(items, budget):
     :param budget: time budget available for test coverage (comes from -b arg)
     :return: achieved risk coverage (on the scale [0.0, 1.0])
     """
+
+    # extracting seeded items to prevent impact on dynamic algorithm computation
+    seeded_items = extract_seeded_items(items)
 
     # adding fake empty element on 0 position, just to keep matching between IDs, list element indexes and 1,2,3,...
     items.insert(0, {})
@@ -527,19 +615,25 @@ def knapsack_01_dynamic_programming(items, budget):
                     test_set[i][j] = list(test_set[i - 1][j - items[i]["ET"]])
                     test_set[i][j].append(i)
 
-    achieved_risk_coverage = 0.0
-    total_risk_value = 0.0
-
     for i in range(1, len(items)):
-        total_risk_value += items[i]["RF"]
         if i in test_set[len(items)-1][budget]:
-            items[i]["SL"] = 1
-            achieved_risk_coverage += items[i]["RF"]
+            items[i]["SL"] = ITEM_SELECTED_BY_ALG
         else:
-            items[i]["SL"] = 0
+            items[i]["SL"] = ITEM_NOT_SELECTED_BY_ALG
 
     # removing fake empty dict from 0 position from items
     items.pop(0)
+
+    # merging back seeded items to restore original list and properly compute risk coverage
+    items = merge_back_seeded_items(items, seeded_items)
+
+    achieved_risk_coverage = 0.0
+    total_risk_value = 0.0
+
+    for i in range(len(items)):
+        total_risk_value += items[i]["RF"]
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER or items[i]["SL"] == ITEM_SELECTED_BY_ALG:
+            achieved_risk_coverage += items[i]["RF"]
 
     return achieved_risk_coverage / total_risk_value
 
@@ -695,7 +789,7 @@ def knapsack_01_greedy_preconditions(items, budget):
         # (2) sort c_ratio_and_cost list by ratio value in descending order
         c_ratio_and_cost = sorted(c_ratio_and_cost, key=itemgetter("CRATIO"), reverse=True)
 
-        # (3) walk through the list until you find an item that you can choose
+        # (3) walk through the list until you find an item that you can choose (we skip seeded items anyway)
         for i in range(n):
             if (c_ratio_and_cost[i]["CCOST"] <= remaining_budget+EPS) and (c_ratio_and_cost[i]["CRATIO"] > 0.0+EPS) and (items[c_ratio_and_cost[i]["INDEX"]]["SL"] != 1):
                 # then we can choose this item and all it's prerequisites

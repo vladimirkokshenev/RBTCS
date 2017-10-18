@@ -441,6 +441,41 @@ class TestExtractItems(unittest.TestCase):
         self.assertEqual(items[6], {"ID": 6, "RF": 9.0, "ET": 10, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
 
 
+# handle_seeding_data(items, arguments)
+class TestHandleSeedingDataNoPreconditions(unittest.TestCase):
+
+    def test_handle_seeding_data_no_preconditions_positive_negative(self):
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1_dp_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        err_status = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(err_status, rbtcs.StatusCode.OK)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        err_status = rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        self.assertEqual(err_status, rbtcs.StatusCode.OK)
+        self.assertEqual(arguments.time_budget, 74)
+
+    def test_handle_seeding_data_no_preconditions_seeding_oversubscription(self):
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_seeding_no_precondition_oversubscription.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        err_status = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(err_status, rbtcs.StatusCode.OK)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        err_status = rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        self.assertEqual(err_status, rbtcs.StatusCode.ERR_SEEDING_CONTRADICTION)
+
+
 # handle_seeding_data(items, arguments, hdr_row)
 class TestHandleSeedingData(unittest.TestCase):
 
@@ -651,6 +686,54 @@ class TestPrepareDataForWriting(unittest.TestCase):
         self.assertEqual(data[hdr_row + 10][sl], 'y')
 
 
+# extract_seeded_items(items),
+# merge_back_seeded_items(items, seeded_items)
+class TestExtractMergeSeededItems(unittest.TestCase):
+
+    def test_extract_seeded_items_and_merge_back(self):
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1_dp_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        err_status = rbtcs.validate_data(arguments, data, hdr_row)
+        self.assertEqual(err_status, rbtcs.StatusCode.OK)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        err_status = rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        self.assertEqual(err_status, rbtcs.StatusCode.OK)
+        self.assertEqual(arguments.time_budget, 74)
+        seeded_items = rbtcs.extract_seeded_items(items)
+        self.assertEqual(len(seeded_items), 4)
+        self.assertEqual(len(items), 6)
+        self.assertEqual(seeded_items[0], {"ID": 0, "RF": 92.0, "ET": 23, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
+        self.assertEqual(seeded_items[1], {"ID": 1, "RF": 57.0, "ET": 31, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
+        self.assertEqual(seeded_items[2], {"ID": 4, "RF": 60.0, "ET": 53, "SL": rbtcs.ITEM_SELECTED_BY_USER})
+        self.assertEqual(seeded_items[3], {"ID": 5, "RF": 43.0, "ET": 38, "SL": rbtcs.ITEM_SELECTED_BY_USER})
+        self.assertEqual(items[0], {"ID": 2, "RF": 49.0, "ET": 29, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[1], {"ID": 3, "RF": 68.0, "ET": 44, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[2], {"ID": 6, "RF": 67.0, "ET": 63, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[3], {"ID": 7, "RF": 84.0, "ET": 85, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[4], {"ID": 8, "RF": 87.0, "ET": 89, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[5], {"ID": 9, "RF": 72.0, "ET": 82, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+
+        items = rbtcs.merge_back_seeded_items(items, seeded_items)
+
+        self.assertEqual(len(items), 10)
+        self.assertEqual(items[0], {"ID": 0, "RF": 92.0, "ET": 23, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
+        self.assertEqual(items[1], {"ID": 1, "RF": 57.0, "ET": 31, "SL": rbtcs.ITEM_EXCLUDED_BY_USER})
+        self.assertEqual(items[2], {"ID": 2, "RF": 49.0, "ET": 29, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[3], {"ID": 3, "RF": 68.0, "ET": 44, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[4], {"ID": 4, "RF": 60.0, "ET": 53, "SL": rbtcs.ITEM_SELECTED_BY_USER})
+        self.assertEqual(items[5], {"ID": 5, "RF": 43.0, "ET": 38, "SL": rbtcs.ITEM_SELECTED_BY_USER})
+        self.assertEqual(items[6], {"ID": 6, "RF": 67.0, "ET": 63, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[7], {"ID": 7, "RF": 84.0, "ET": 85, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[8], {"ID": 8, "RF": 87.0, "ET": 89, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+        self.assertEqual(items[9], {"ID": 9, "RF": 72.0, "ET": 82, "SL": rbtcs.ITEM_NOT_SELECTED_BY_ALG})
+
+
 # knapsack_01_dynamic_programming(items, budget)
 class TestKnapsack01DP(unittest.TestCase):
     """Unit tests for knapsack_01_dynamic_programming"""
@@ -679,6 +762,32 @@ class TestKnapsack01DP(unittest.TestCase):
         self.assertEqual(items[7]["SL"], 0)
         self.assertEqual(items[8]["SL"], 0)
         self.assertEqual(items[9]["SL"], 0)
+
+    def test_1_dp_seeding(self):
+        """seed data <test_alg_1_dp_seeding.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1_dp_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b', '165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.3240059)
+        self.assertEqual(items[0]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[1]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[2]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[3]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[4]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+        self.assertEqual(items[5]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+        self.assertEqual(items[6]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[7]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[8]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[9]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
 
     def test_2(self):
         """seed data <test_alg_2.xlsx>, time budget 26"""
@@ -772,6 +881,38 @@ class TestKnapsack01DP(unittest.TestCase):
         self.assertEqual(items[12]["SL"], 0)
         self.assertEqual(items[13]["SL"], 1)
         self.assertEqual(items[14]["SL"], 1)
+
+    def test_5_dp_seeding(self):
+        """seed data <test_alg_5_dp_seeding.xlsx>, time budget 750"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_5_dp_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=750'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        rc = rbtcs.knapsack_01_dynamic_programming(items, arguments.time_budget)
+
+        self.assertAlmostEqual(rc, 0.5232221)
+        self.assertEqual(items[0]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[1]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+        self.assertEqual(items[2]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[3]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+        self.assertEqual(items[4]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[5]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+        self.assertEqual(items[6]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[7]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[8]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[9]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[10]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[11]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[12]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[13]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[14]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
 
     def test_6(self):
         """seed data <test_alg_6.xlsx>, time budget 6405"""
