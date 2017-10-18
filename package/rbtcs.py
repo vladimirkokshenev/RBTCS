@@ -450,7 +450,7 @@ def prepare_data_for_writing(arguments, values, hdr_row, items):
 
     # populate selection column with y/n
     for i in range(len(items)):
-        if items[i]["SL"] == 1:
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER or items[i]["SL"] == ITEM_SELECTED_BY_ALG:
             values[hdr_row + 1 + i][sl] = 'y'
         else:
             values[hdr_row + 1 + i][sl] = 'n'

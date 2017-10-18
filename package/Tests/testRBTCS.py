@@ -1,10 +1,9 @@
 import unittest
 import sys
-import os
-import logging
 sys.path.append('''C:\Git\RBTCS\package''')
 import rbtcs
-
+import os
+import logging
 
 class TestInitLogger(unittest.TestCase):
     """Fake unit test to trigger init_logger()"""
@@ -611,6 +610,45 @@ class TestPrepareDataForWriting(unittest.TestCase):
         self.assertEqual(data[hdr_row + 4][sl], 'y')
         self.assertEqual(data[hdr_row + 10][pr], '1,2,3,4,5,6')
         self.assertEqual(data[hdr_row + 10][sl], 'n')
+
+    def test_prepare_data_seeding(self):
+        """ Unit test for prepare_data_for_writing() with seeding """
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_misc_seeding.xlsx',
+                                           '-r', 'Risk Values',
+                                           '-t', 'EXECost (MH)',
+                                           '-s', 'Covered (n)?',
+                                           '-b=1000',
+                                           '-p', 'Preconditions'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        ret = rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rbtcs.handle_seeding_data(items, arguments, hdr_row)
+        # no any algorithms involved
+        rbtcs.prepare_data_for_writing(arguments, data, hdr_row, items)
+        pr = data[hdr_row].index(arguments.prerequisites)
+        sl = data[hdr_row].index(arguments.selection)
+        self.assertEqual(data[hdr_row + 1][pr], '')
+        self.assertEqual(data[hdr_row + 1][sl], 'y')
+        self.assertEqual(data[hdr_row + 2][pr], '1')
+        self.assertEqual(data[hdr_row + 2][sl], 'y')
+        self.assertEqual(data[hdr_row + 3][pr], '')
+        self.assertEqual(data[hdr_row + 3][sl], 'n')
+        self.assertEqual(data[hdr_row + 4][pr], '1,2,10')
+        self.assertEqual(data[hdr_row + 4][sl], 'y')
+        self.assertEqual(data[hdr_row + 5][pr], '1')
+        self.assertEqual(data[hdr_row + 5][sl], 'n')
+        self.assertEqual(data[hdr_row + 6][pr], '')
+        self.assertEqual(data[hdr_row + 6][sl], 'y')
+        self.assertEqual(data[hdr_row + 7][pr], '')
+        self.assertEqual(data[hdr_row + 7][sl], 'n')
+        self.assertEqual(data[hdr_row + 8][pr], '7')
+        self.assertEqual(data[hdr_row + 8][sl], 'n')
+        self.assertEqual(data[hdr_row + 9][pr], '8')
+        self.assertEqual(data[hdr_row + 9][sl], 'n')
+        self.assertEqual(data[hdr_row + 10][pr], '')
+        self.assertEqual(data[hdr_row + 10][sl], 'y')
 
 
 # knapsack_01_dynamic_programming(items, budget)
