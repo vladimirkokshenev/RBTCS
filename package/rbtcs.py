@@ -34,6 +34,7 @@ class StatusCode(enum.Enum):
     ERR_HEADER_ROW_LAST = 11
     ERR_PREREQUISITES_TYPE = 12
     ERR_XLWT_WRITE = 13
+    ERR_SEEDING_CONTRADICTION = 14
 
 
 # CONSTANTS DECLARATION
@@ -43,8 +44,9 @@ MAX_BUDGET = 10000
 MAX_ITEMS = 300
 # acceptable floating point error
 EPS = 0.000001
-# item was excluded by algorithm from the final coverage
-ITEM_EXCLUDED_BY_ALG = 0
+# item hasn't been selected by algorithm
+# if algorithm is running - it is not yet selected, if algorithm finished - it is not selected at all.
+ITEM_NOT_SELECTED_BY_ALG = 0
 # item was selected by algorithm for the final coverage
 ITEM_SELECTED_BY_ALG = 1
 # item was excluded by user in an input file (it must not be included into final coverage)
@@ -305,37 +307,119 @@ def extract_items(arguments, values, hdr_row):
 
     for i in range(hdr_row + 1, len(values)):
         items.append({})
-        items[-1]["ID"] = i - hdr_row
+
+        # populate ID - start from 0
+        items[-1]["ID"] = i - hdr_row - 1
+
+        # populate Risk Values
         items[-1]["RF"] = values[i][rf]
+
+        # populate Execution Time
         items[-1]["ET"] = values[i][et]
 
-        # handle seeding data
+        # populate Seeding Data
         seed_inclusion_marks = ('y', 'Y')
         seed_exclusion_marks = ('n', 'N')
-        items[-1]["SL"] = ITEM_EXCLUDED_BY_ALG
+        items[-1]["SL"] = ITEM_NOT_SELECTED_BY_ALG
 
         if values[i][sl] in seed_inclusion_marks:
             items[-1]["SL"] = ITEM_SELECTED_BY_USER
         if values[i][sl] in seed_exclusion_marks:
             items[-1]["SL"] = ITEM_EXCLUDED_BY_USER
 
-        # handle preconditions
+        # populate preconditions
         if arguments.prerequisites != "":
             items[-1]["PR"] = list(set(values[i][pr]))
 
     return items
 
 
-def split_seeded_items(items, arguments):
+def handle_seeding_data(items, arguments, hdr_row):
     """
-    The method will extract seeded items from items list, and put them into separate list. 
-    It will update budget (as it should be reduced according to execution time of all pre-selected items.
+    The method will calculate precondition relationship matrix to check seeding data for contradictions. 
+    It will update budget (as it should be reduced according to execution time of all pre-selected items).
     It will also update preconditions, as pre-selected items can be removed from preconditions of remaining items.
-    It will also remove items, that have precondition referring to one of excluded by user item.
+    It will also mark non-seeded items as ITEM_EXCLUDED_BY_USER 
+    in case if one of preconditions have ITEM_EXCLUDED_BY_USER mark.
     :param items: item list extracted from the input data
     :param arguments: command line arguments
-    :return: seeded_items list (those items that were marked with 'y' or 'n' in the item selection row in input file)
+    :param hdr_row: header row number
+    :return: no return value
     """
+
+    logger = logging.getLogger(default_arguments["logger"])
+
+    pc_matrix = get_preconditions_matrix(items)
+    n = len(items)
+
+    # check for seeding contradictions
+    # contradiction happens when ITEM_SELECTED_BY_USER has a precondition item marked as ITEM_EXCLUDED_BY_USER
+    for item in items:
+        if item["SL"] == ITEM_SELECTED_BY_USER:
+            contradiction = False
+            for i in range(n):
+                if pc_matrix[item["ID"]][i] == 1 and items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
+                    contradiction = True
+            if contradiction:
+                logger.critical("Contradiction detected for seeding data: item #%d was selected by user, and it has precondition item #%d which was excluded by user",
+                                hdr_row + item["ID"] + 1, hdr_row + i + 1)
+                return StatusCode.ERR_SEEDING_CONTRADICTION
+
+    # handle negative seeding, for every item X if any of it's preconditions is marked as ITEM_EXCLUDED_BY_USER,
+    # then X must be marked ITEM_EXCLUDED_BY_USER as well.
+    implicit_negative_seeding = 0
+    explicit_negative_seeding = 0
+    for i in range(n):
+        if items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
+            explicit_negative_seeding = explicit_negative_seeding + 1
+            for j in range(n):
+                if i != j and pc_matrix[j][i] == 1:
+                    items[j]["SL"] = ITEM_EXCLUDED_BY_USER
+                    implicit_negative_seeding = implicit_negative_seeding + 1
+
+    if explicit_negative_seeding > 0:
+        logger.info("%d items were identified as explicitly excluded by user", explicit_negative_seeding)
+        logger.info("Additionally, %d items were identified as implicitly excluded by user", implicit_negative_seeding)
+
+    # handle positive seeding, for every item X marked as ITEM_SELECTED_BY_USER,
+    # all preconditions of X have to be marked ITEM_SELECTED_BY_USER as well.
+    implicit_positive_seeding = 0
+    explicit_positive_seeding = 0
+    for i in range(n):
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER:
+            explicit_positive_seeding = explicit_positive_seeding + 1
+            for j in range(n):
+                if i != j and pc_matrix[i][j] == 1:
+                    items[j]["SL"] = ITEM_SELECTED_BY_USER
+                    implicit_positive_seeding = implicit_positive_seeding + 1
+
+    if explicit_positive_seeding > 0:
+        logger.info("%d items were identified as explicitly selected by user", explicit_positive_seeding)
+        logger.info("Additionally, %d items were identified as implicitly selected by user", implicit_positive_seeding)
+
+    # calculate prebooked_budget, and remove positively seeded items from preconditions lists
+    prebooked_budget = 0
+    for i in range(n):
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER:
+            prebooked_budget = prebooked_budget + items[i]["ET"]
+            for j in range(n):
+                if i != j and (i+1) in items[j]["PR"]:
+                    # when removing item i from list of preconditions, keep in mind that "PR"-list is not 0-based
+                    # it starts from 1, so need to use (i+1)
+                    items[j]["PR"].remove(i+1)
+
+    if prebooked_budget > arguments.time_budget:
+        logger.critical("Contradiction detected for seeding data: budget of all items selected by user is %d and it exceeds available time budget of %d",
+                        prebooked_budget, arguments.time_budget)
+        return StatusCode.ERR_SEEDING_CONTRADICTION
+
+    # adjust budget available for algorithm
+    arguments.time_budget = arguments.time_budget - prebooked_budget
+
+    logger.info("Budget prebooked with seeding is %d, budget remaining for algorithm is %d",
+                prebooked_budget, arguments.time_budget)
+
+    return StatusCode.OK
 
 
 def prepare_data_for_writing(arguments, values, hdr_row, items):
@@ -518,21 +602,50 @@ def transitive_closure(matr):
     return matr
 
 
-def knapsack_01_greedy_cumulative_ratio(items, prereq_matr):
+def get_preconditions_matrix(items):
     """
-    Takes item list and transitive closure of prerequisite relation and calculates cumulative ratio of risk per cost for items.
-    Cumulative ratio is a sum of item risk and all risks of all prerequisites of the item, divided by sun of item cost
-    and sum of costs of all prerequisites.
-    
-    :param items: list of items
-    :param prereq_matr: transitive closure of prerequisites relation
-    :return: list of lists where every element is a [i, ratio, cost]. 
-             i - item index, 
-             ratio - cumulative ration for item i,
-             cost - cumulative cost for item i.
+    Calculates precondition relationship matrix from an items list.
+    :param items: list of items (list of dicts with rf, et, sl, id, pr values)
+    :return: precondition relationship matrix (as a reflexive, symmetric and transitive relation)
     """
 
-    cumulative_ratio = []
+    # init n as a number of items
+    n = len(items)
+
+    # build precondition relationship matrix
+    pc_matrix = [[0 for j in range(n)] for i in range(n)]
+    for i in range(n):
+        pc_matrix[i][i] = 1
+        for precondition in items[i]["PR"]:
+            # items are based from 0, prerequisites in input file are based from 1
+            # that is why we need to use precondition-1
+            pc_matrix[i][precondition - 1] = 1
+
+    # calculate transitive closure for this relationship (use Warshall's alg)
+    pc_matrix = transitive_closure(pc_matrix)
+
+    return pc_matrix
+
+
+def get_cumulative_ratio_and_cost(items, prereq_matr):
+    """
+    Takes item list and transitive closure of prerequisite relationship, and calculates 
+    cumulative ratio of risk per cost, and cumulative cost for items.
+    
+    Cumulative ratio is a sum of an item risk and all risks of all prerequisites of the item, 
+    divided by a sum of an item cost and sum of costs of all precondition items.
+    
+    Cumulative cost is a sum of an item cost and sum of costs of all precondition items.
+    
+    :param items: list of items
+    :param prereq_matr: transitive closure of prerequisites relationship
+    :return: list where every element is a dictionary {"INDEX", "CRATIO", "CCOST"}. 
+             "INDEX" key contains original item index (integer), 
+             "CRATIO" key contains cumulative ratio for item i (float),
+             "CCOST" key contains cumulative cost for item i (float).
+    """
+
+    cumulative_ratio_and_cost = []
     n = len(items)
     for i in range(n):
         cumulative_risk = 0.0
@@ -544,14 +657,16 @@ def knapsack_01_greedy_cumulative_ratio(items, prereq_matr):
                 cumulative_risk += items[k]["RF"]
                 cumulative_cost += items[k]["ET"]
         if cumulative_cost != 0:
-            cumulative_ratio.append([i, cumulative_risk/cumulative_cost, cumulative_cost])
+            cumulative_ratio_and_cost.append({"INDEX": i, "CRATIO": cumulative_risk/cumulative_cost, "CCOST": cumulative_cost})
+            #cumulative_ratio_and_cost.append([i, cumulative_risk/cumulative_cost, cumulative_cost])
         else:
-            cumulative_ratio.append([i, 0.0, cumulative_cost])
+            cumulative_ratio_and_cost.append({"INDEX": i, "CRATIO": 0.0, "CCOST": cumulative_cost})
+            #cumulative_ratio_and_cost.append([i, 0.0, cumulative_cost])
 
-    return cumulative_ratio
+    return cumulative_ratio_and_cost
 
 
-def knapsack_01_greedy_prerequisites(items, budget):
+def knapsack_01_greedy_preconditions(items, budget):
     """
     This is implementation of greedy solution for 01 knapsack with all-neighbor constraints (i.e. prerequisites in our case)
     
@@ -563,17 +678,7 @@ def knapsack_01_greedy_prerequisites(items, budget):
     # init n as a number of items
     n = len(items)
 
-    # step 1: build prerequisites relation matrix
-    pr_matrix = [[0 for j in range(n)] for i in range(n)]
-    for i in range(n):
-        pr_matrix[i][i] = 1
-        for prereq in items[i]["PR"]:
-            # items are based from 0, prerequisites in input file are based from 1
-            # that is why we need to use prereq-1
-            pr_matrix[i][prereq-1] = 1
-
-    # step 2: calculate transitive closure for this relation (use Warshall's alg)
-    pr_matrix = transitive_closure(pr_matrix)
+    pc_matrix = get_preconditions_matrix(items)
 
     # init variables
     remaining_budget = budget
@@ -583,23 +688,23 @@ def knapsack_01_greedy_prerequisites(items, budget):
         # change proceed flag
         need_to_proceed = False
 
-        # (1) calculate a cost of inclusion for each item honoring all it's prerequisite items,
+        # (1) calculate a cost of inclusion for each item honoring all it's precondition items,
         # total risk associated with them, calculate risk per cost ratio, and overall inclusion cost.
-        cumulative_ratio = knapsack_01_greedy_cumulative_ratio(items, pr_matrix)
+        c_ratio_and_cost = get_cumulative_ratio_and_cost(items, pc_matrix)
 
-        # (2) sort cumulative_ratio list by ratio value in descending order
-        cumulative_ratio = sorted(cumulative_ratio, key=itemgetter(1), reverse=True)
+        # (2) sort c_ratio_and_cost list by ratio value in descending order
+        c_ratio_and_cost = sorted(c_ratio_and_cost, key=itemgetter("CRATIO"), reverse=True)
 
         # (3) walk through the list until you find an item that you can choose
         for i in range(n):
-            if (cumulative_ratio[i][2] <= remaining_budget+EPS) and (cumulative_ratio[i][1] > 0.0+EPS) and (items[cumulative_ratio[i][0]]["SL"] != 1):
+            if (c_ratio_and_cost[i]["CCOST"] <= remaining_budget+EPS) and (c_ratio_and_cost[i]["CRATIO"] > 0.0+EPS) and (items[c_ratio_and_cost[i]["INDEX"]]["SL"] != 1):
                 # then we can choose this item and all it's prerequisites
-                # item number of chosen item is stored in cumulative_ratio[i[0]]
-                chosen_item = cumulative_ratio[i][0]
+                # item number of chosen item is stored in c_ratio_and_cost[i[0]]
+                chosen_item = c_ratio_and_cost[i]["INDEX"]
 
-                # scan prereq relation table row <chosen_item> to find the full list of items for inclusion
+                # scan precondition relation table row <chosen_item> to find the full list of items for inclusion
                 for k in range(n):
-                    if pr_matrix[chosen_item][k] == 1:
+                    if pc_matrix[chosen_item][k] == 1:
                         # then we need to choose this item as it is either chosen item or it's prerequisite
                         items[k]["SL"] = 1
 
@@ -609,7 +714,7 @@ def knapsack_01_greedy_prerequisites(items, budget):
                         # exclude this element from prerequisite list of all other element
                         # to do so just nullify column k in relation table
                         for j in range(n):
-                            pr_matrix[j][k] = 0
+                            pc_matrix[j][k] = 0
 
                 # as we chose some items, we need to change flag to true, as another walk is required
                 need_to_proceed = True
@@ -629,6 +734,7 @@ def knapsack_01_greedy_prerequisites(items, budget):
     return achieved_risk_coverage / total_risk_value
 
 
+# old implementation (doesn't use items). To be removed.
 def alg_dynamic_programming_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
@@ -691,6 +797,7 @@ def alg_dynamic_programming_01(arguments, values, hdr_row):
     return achieved_risk_coverage/total_risk_value
 
 
+# old implementation (doesn't use items). To be removed.
 def alg_greedy_01(arguments, values, hdr_row):
     """ Select test cases to build maximized risk coverage using dynamic programming method for 01 knapsack
 
@@ -784,7 +891,7 @@ if __name__ == "__main__":
             logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
     else:
         logger.info("Building test coverage using greedy approximation algorithm with preconditions support")
-        rc = knapsack_01_greedy_prerequisites(items, arguments.time_budget)
+        rc = knapsack_01_greedy_preconditions(items, arguments.time_budget)
         logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
 
     # prepare data for writing
