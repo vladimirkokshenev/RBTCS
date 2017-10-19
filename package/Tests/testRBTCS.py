@@ -983,6 +983,58 @@ class TestKnapsack01Greedy(unittest.TestCase):
         self.assertEqual(items[8]["SL"], 0)
         self.assertEqual(items[9]["SL"], 0)
 
+    def test_1_greedy_seeding(self):
+        """input data <test_alg_1_greedy_seeding.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1_greedy_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.2503682)
+        self.assertEqual(items[0]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[1]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[2]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[3]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[4]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[5]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[6]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[7]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[8]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[9]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+
+    def test_1a_greedy_seeding(self):
+        """input data <test_alg_1_greedy_seeding.xlsx>, time budget 165"""
+        arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],
+                                           'test_alg_1a_greedy_seeding.xlsx',
+                                           '-r', 'Risk Factor',
+                                           '-t', 'Execution Time',
+                                           '-s', 'Selected',
+                                           '-b=165'])
+        data = rbtcs.read_data(arguments.filename)
+        hdr_row = rbtcs.detect_header_row(arguments, data)
+        rbtcs.validate_data(arguments, data, hdr_row)
+        items = rbtcs.extract_items(arguments, data, hdr_row)
+        rbtcs.handle_seeding_data_no_preconditions(items, arguments)
+        rc = rbtcs.knapsack_01_greedy(items, arguments.time_budget)
+        self.assertAlmostEqual(rc, 0.1944035)
+        self.assertEqual(items[0]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[1]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[2]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[3]["SL"], rbtcs.ITEM_EXCLUDED_BY_USER)
+        self.assertEqual(items[4]["SL"], rbtcs.ITEM_SELECTED_BY_ALG)
+        self.assertEqual(items[5]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[6]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[7]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[8]["SL"], rbtcs.ITEM_NOT_SELECTED_BY_ALG)
+        self.assertEqual(items[9]["SL"], rbtcs.ITEM_SELECTED_BY_USER)
+
     def test_2(self):
         """seed data <test_alg_2.xlsx>, time budget 26"""
         arguments = rbtcs.parse_arguments([rbtcs.default_arguments['rbtcs'],

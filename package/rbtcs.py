@@ -659,19 +659,20 @@ def knapsack_01_greedy(items, budget):
     # iterate through items in risk_density (which is sorted in decreasing order)
     # and try to include item into coverage
     for i in range(len(items)):
-        if items[risk_density[i][0]]["ET"] <= remaining_budget:
-            items[risk_density[i][0]]["SL"] = 1
-            remaining_budget -= items[risk_density[i][0]]["ET"]
-        else:
-            items[risk_density[i][0]]["SL"] = 0
+        if items[risk_density[i][0]]["SL"] != ITEM_SELECTED_BY_USER and items[risk_density[i][0]]["SL"] != ITEM_EXCLUDED_BY_USER:
+            if items[risk_density[i][0]]["ET"] <= remaining_budget:
+                items[risk_density[i][0]]["SL"] = ITEM_SELECTED_BY_ALG
+                remaining_budget -= items[risk_density[i][0]]["ET"]
+            else:
+                items[risk_density[i][0]]["SL"] = ITEM_NOT_SELECTED_BY_ALG
 
     # calculate achieved_risk_ration = achieved_risk_coverage/total_risk_value
     achieved_risk_coverage = 0.0
     total_risk_value = 0.0
 
-    for i in range(0, len(items)):
+    for i in range(len(items)):
         total_risk_value += items[i]["RF"]
-        if items[i]["SL"] == 1:
+        if items[i]["SL"] == ITEM_SELECTED_BY_USER or items[i]["SL"] == ITEM_SELECTED_BY_ALG:
             achieved_risk_coverage += items[i]["RF"]
 
     return achieved_risk_coverage / total_risk_value
