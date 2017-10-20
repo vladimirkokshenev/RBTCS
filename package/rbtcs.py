@@ -790,18 +790,18 @@ def knapsack_01_greedy_preconditions(items, budget):
         # (2) sort c_ratio_and_cost list by ratio value in descending order
         c_ratio_and_cost = sorted(c_ratio_and_cost, key=itemgetter("CRATIO"), reverse=True)
 
-        # (3) walk through the list until you find an item that you can choose (we skip seeded items anyway)
+        # (3) Walk through the list until you find an item that you can choose.
+        #     We skip seeded items anyway. We skip items that have been selected by algorithm already as well.
         for i in range(n):
-            if (c_ratio_and_cost[i]["CCOST"] <= remaining_budget+EPS) and (c_ratio_and_cost[i]["CRATIO"] > 0.0+EPS) and (items[c_ratio_and_cost[i]["INDEX"]]["SL"] != 1):
+            if (items[c_ratio_and_cost[i]["INDEX"]]["SL"] == ITEM_NOT_SELECTED_BY_ALG) and (c_ratio_and_cost[i]["CCOST"] <= remaining_budget+EPS) and (c_ratio_and_cost[i]["CRATIO"] > 0.0+EPS):
                 # then we can choose this item and all it's prerequisites
                 # item number of chosen item is stored in c_ratio_and_cost[i[0]]
                 chosen_item = c_ratio_and_cost[i]["INDEX"]
-
                 # scan precondition relation table row <chosen_item> to find the full list of items for inclusion
                 for k in range(n):
                     if pc_matrix[chosen_item][k] == 1:
                         # then we need to choose this item as it is either chosen item or it's prerequisite
-                        items[k]["SL"] = 1
+                        items[k]["SL"] = ITEM_SELECTED_BY_ALG
 
                         # adjust remaining_budget
                         remaining_budget -= items[k]["ET"]
@@ -823,7 +823,7 @@ def knapsack_01_greedy_preconditions(items, budget):
 
     for i in range(n):
         total_risk_value += items[i]["RF"]
-        if items[i]["SL"] == 1:
+        if items[i]["SL"] == ITEM_SELECTED_BY_ALG or items[i]["SL"] == ITEM_SELECTED_BY_USER:
             achieved_risk_coverage += items[i]["RF"]
 
     return achieved_risk_coverage / total_risk_value
@@ -975,6 +975,9 @@ if __name__ == "__main__":
 
     # launching optimization algorithm to build test set
     if arguments.prerequisites == "":
+        err_code = handle_seeding_data_no_preconditions(items, arguments)
+        if err_code != StatusCode.OK:
+            exit(err_code)
         try:
             logger.info("Building test coverage using optimal algorithm")
             rc = knapsack_01_dynamic_programming(items, arguments.time_budget)
@@ -985,6 +988,9 @@ if __name__ == "__main__":
             rc = knapsack_01_greedy(items, arguments.time_budget)
             logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
     else:
+        err_code = handle_seeding_data(items, arguments, hdr_row)
+        if err_code != StatusCode.OK:
+            exit(err_code)
         logger.info("Building test coverage using greedy approximation algorithm with preconditions support")
         rc = knapsack_01_greedy_preconditions(items, arguments.time_budget)
         logger.info("With the time budget of %d risk coverage is %f", arguments.time_budget, rc)
