@@ -395,48 +395,54 @@ def handle_seeding_data(items, arguments, hdr_row):
 
     # check for seeding contradictions
     # contradiction happens when ITEM_SELECTED_BY_USER has a precondition item marked as ITEM_EXCLUDED_BY_USER
-    for item in items:
-        if item["SL"] == ITEM_SELECTED_BY_USER:
+    for k in range(n):
+        if items[k]["SL"] == ITEM_SELECTED_BY_USER:
             contradiction = False
             for i in range(n):
-                if pc_matrix[item["ID"]][i] == 1 and items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
+                if pc_matrix[k][i] == 1 and items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
                     contradiction = True
+                    contradiction_pair = [k, i]
+                    break
             if contradiction:
-                logger.critical("Contradiction detected for seeding data: item #%d was selected by user, and it has precondition item #%d which was excluded by user",
-                                hdr_row + item["ID"] + 1, hdr_row + i + 1)
+                logger.critical("Contradiction detected for seeding data: item in row #%d was selected by user, and it has precondition item in row #%d which was excluded by user",
+                                hdr_row + contradiction_pair[0] + 2, hdr_row + contradiction_pair[1] + 2)
                 return StatusCode.ERR_SEEDING_CONTRADICTION
 
     # handle negative seeding, for every item X if any of it's preconditions is marked as ITEM_EXCLUDED_BY_USER,
     # then X must be marked ITEM_EXCLUDED_BY_USER as well.
-    implicit_negative_seeding = 0
-    explicit_negative_seeding = 0
+    implicit_negative_seeding = set([])
+    explicit_negative_seeding = set([])
     for i in range(n):
         if items[i]["SL"] == ITEM_EXCLUDED_BY_USER:
-            explicit_negative_seeding = explicit_negative_seeding + 1
+            if i not in implicit_negative_seeding:
+                explicit_negative_seeding.add(i)
             for j in range(n):
                 if i != j and pc_matrix[j][i] == 1:
                     items[j]["SL"] = ITEM_EXCLUDED_BY_USER
-                    implicit_negative_seeding = implicit_negative_seeding + 1
+                    if j not in explicit_negative_seeding:
+                        implicit_negative_seeding.add(j)
 
-    if explicit_negative_seeding > 0:
-        logger.info("%d items were identified as explicitly excluded by user", explicit_negative_seeding)
-        logger.info("Additionally, %d items were identified as implicitly excluded by user", implicit_negative_seeding)
+    if len(explicit_negative_seeding) > 0:
+        logger.info("%d items were identified as explicitly excluded by user", len(explicit_negative_seeding))
+        logger.info("Additionally, %d items were identified as implicitly excluded by user", len(implicit_negative_seeding))
 
     # handle positive seeding, for every item X marked as ITEM_SELECTED_BY_USER,
     # all preconditions of X have to be marked ITEM_SELECTED_BY_USER as well.
-    implicit_positive_seeding = 0
-    explicit_positive_seeding = 0
+    implicit_positive_seeding = set([])
+    explicit_positive_seeding = set([])
     for i in range(n):
         if items[i]["SL"] == ITEM_SELECTED_BY_USER:
-            explicit_positive_seeding = explicit_positive_seeding + 1
+            if i not in implicit_positive_seeding:
+                explicit_positive_seeding.add(i)
             for j in range(n):
                 if i != j and pc_matrix[i][j] == 1:
                     items[j]["SL"] = ITEM_SELECTED_BY_USER
-                    implicit_positive_seeding = implicit_positive_seeding + 1
+                    if j not in explicit_positive_seeding:
+                        implicit_positive_seeding.add(j)
 
-    if explicit_positive_seeding > 0:
-        logger.info("%d items were identified as explicitly selected by user", explicit_positive_seeding)
-        logger.info("Additionally, %d items were identified as implicitly selected by user", implicit_positive_seeding)
+    if len(explicit_positive_seeding) > 0:
+        logger.info("%d items were identified as explicitly selected by user", len(explicit_positive_seeding))
+        logger.info("Additionally, %d items were identified as implicitly selected by user", len(implicit_positive_seeding))
 
     # calculate prebooked_budget, and remove positively seeded items from preconditions lists
     prebooked_budget = 0
