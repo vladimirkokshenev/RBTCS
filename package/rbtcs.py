@@ -71,7 +71,7 @@ def init_logger():
 
 
 def parse_arguments(arguments):
-    """ Validate input filename.
+    """ Parse input arguments.
 
     :param arguments: sys.argv structure with input arguments
     :return: parsed argument in a structure returned by parser.parse_args()
